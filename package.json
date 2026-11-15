@@ -1,0 +1,26 @@
+{
+  "name": "oskarschulze10-spec-miniature-umbrella",
+  "version": "1.0.0",
+  "description": "",
+  "main": "src/index.js",
+  "engines": {
+    "node": ">=20"
+  },
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "start": "node src/index.js",
+    "test": "node test/ca-community-smoke.js && node test/runtime-smoke.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@whiskeysockets/baileys": "^7.0.0-rc14",
+    "dotenv": "^16.4.7",
+    "pino": "^9.6.0",
+    "pino-pretty": "^13.0.0",
+    "qrcode-terminal": "^0.12.0"
+  }
+}
