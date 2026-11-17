@@ -15,26 +15,76 @@ function normalizedJid(jid) {
   return String(jid || '').split('@')[0].split(':')[0];
 }
 
-async function resolveSenderNumber(sock, messageKey) {
+function migrateUserAlias(data, alias, canonical) {
+  if (!data || !alias || !canonical || alias === canonical) return;
+  data.userAliases ||= {};
+  data.userAliases[alias] = canonical;
+
+  const oldAccount = data.users?.[alias];
+  if (oldAccount) {
+    data.users[canonical] ||= oldAccount;
+    if (data.users[canonical] !== oldAccount) {
+      for (const [key, value] of Object.entries(oldAccount)) {
+        if (data.users[canonical][key] === undefined || data.users[canonical][key] === null) {
+          data.users[canonical][key] = value;
+        }
+      }
+    }
+    delete data.users[alias];
+  }
+
+  const oldTodos = data.userTodos?.[alias];
+  if (oldTodos) {
+    data.userTodos[canonical] ||= [];
+    const knownIds = new Set(data.userTodos[canonical].map((todo) => todo.id));
+    for (const todo of oldTodos) {
+      if (!knownIds.has(todo.id)) data.userTodos[canonical].push(todo);
+    }
+    delete data.userTodos[alias];
+  }
+}
+
+async function resolveSenderNumber(sock, messageKey, data) {
+  const isGroup = String(messageKey?.remoteJid || '').endsWith('@g.us');
   const candidates = [
     messageKey?.participantAlt,
-    messageKey?.remoteJidAlt,
     messageKey?.participant,
-    messageKey?.remoteJid,
-  ].filter(Boolean);
-  const phoneJid = candidates.find((jid) => jid.endsWith('@s.whatsapp.net') || jid.endsWith('@hosted'));
-  if (phoneJid) return normalizedJid(phoneJid);
+    ...(!isGroup ? [messageKey?.remoteJidAlt, messageKey?.remoteJid] : []),
+  ].filter((jid) => typeof jid === 'string' && jid.includes('@'));
+  const phoneJid = candidates.find((jid) => (
+    jid.endsWith('@s.whatsapp.net') || jid.endsWith('@hosted')
+  ));
+  const lidCandidates = candidates.filter((jid) => (
+    jid.endsWith('@lid') || jid.endsWith('@hosted.lid')
+  ));
+
+  if (phoneJid) {
+    const canonical = normalizedJid(phoneJid);
+    for (const lid of lidCandidates) migrateUserAlias(data, normalizedJid(lid), canonical);
+    return canonical;
+  }
 
   const lidMapping = sock.signalRepository?.lidMapping;
   if (lidMapping?.getPNForLID) {
-    for (const jid of candidates.filter((candidate) => candidate.endsWith('@lid') || candidate.endsWith('@hosted.lid'))) {
+    for (const jid of lidCandidates) {
       try {
         const phone = await lidMapping.getPNForLID(jid);
-        if (phone) return normalizedJid(phone);
+        if (phone) {
+          const canonical = normalizedJid(phone);
+          migrateUserAlias(data, normalizedJid(jid), canonical);
+          return canonical;
+        }
       } catch (error) {
         console.error(`LID-Zuordnung für ${jid} konnte nicht geladen werden:`, error.message);
       }
     }
+  }
+
+  data && (data.userAliases ||= {});
+  for (const jid of lidCandidates) {
+    const alias = normalizedJid(jid);
+    const canonical = data?.userAliases?.[alias];
+    if (canonical) return canonical;
   }
   return normalizedJid(candidates[0]);
 }
@@ -149,7 +199,7 @@ async function dispatchMessage({
   const text = messageText(message);
   if (!String(text).trimStart().startsWith(prefix)) return false;
   const isGroup = message.key.remoteJid.endsWith('@g.us');
-  const sender = await resolveSenderNumber(sock, message.key);
+  const sender = await resolveSenderNumber(sock, message.key, data);
   const isOwner = config.ownerNumbers.includes(sender);
   if (isGroup && data.groupIgnore[message.key.remoteJid] && !isOwner) return false;
   if (!isGroup && data.blockedPrivateChats.includes(sender) && !isOwner) return false;
