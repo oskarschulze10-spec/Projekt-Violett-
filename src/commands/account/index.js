@@ -120,7 +120,7 @@ module.exports = (runtime) => {
   {
     order: 59460,
     register() {
-      register(['profile'], 'Account anzeigen', async (ctx) => {
+      register(['profile', 'pb'], 'Account anzeigen', async (ctx) => {
         const account = user(ctx);
         await ctx.reply(`👤 ${account.displayName || 'Unregistriert'}\n₿ Bitcoin: ${account.bitcoin}\n⭐ VIP: ${isVip(account) ? 'aktiv' : 'inaktiv'}`);
       });
