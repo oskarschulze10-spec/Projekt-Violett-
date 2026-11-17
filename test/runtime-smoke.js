@@ -23,7 +23,7 @@ async function run() {
   assert.strictEqual('shouldSyncHistoryMessage' in baileysConfig, false);
 
   const uniqueCommands = new Set(commands.values());
-  assert.strictEqual(commands.size, 156);
+  assert.strictEqual(commands.size, 157);
   assert.strictEqual(uniqueCommands.size, 134);
   assert.ok([...uniqueCommands].every((command) => (
     typeof command.handler === 'function'
@@ -61,6 +61,20 @@ async function run() {
     participant: '123456789:3@lid',
     remoteJid: '123456789@g.us',
   }), '491701234567');
+  const aliasedData = { users: { '123456789': { bitcoin: 250, displayName: 'Test' } }, userTodos: { '123456789': [{ id: '1', text: 'Test', done: false }] } };
+  assert.strictEqual(await resolveSenderNumber({
+    signalRepository: {
+      lidMapping: {
+        getPNForLID: async () => '491701234567@s.whatsapp.net',
+      },
+    },
+  }, {
+    participant: '123456789@lid',
+    remoteJid: '987654321@g.us',
+  }, aliasedData), '491701234567');
+  assert.strictEqual(aliasedData.userAliases['123456789'], '491701234567');
+  assert.strictEqual(aliasedData.users['491701234567'].bitcoin, 250);
+  assert.strictEqual(aliasedData.userTodos['491701234567'][0].text, 'Test');
   assert.throws(() => assertAuthAccount({
     creds: { me: { id: '491701234567@s.whatsapp.net' } },
   }, config), /eigenen AUTH_DIRECTORY/);
