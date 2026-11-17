@@ -328,35 +328,65 @@ function isSpicyMenuVisible(context) {
 
 function renderMenu(category, prefix = '#', context) {
   const menuStyle = {
-    1: ['╭━━━ 🌷 ACCOUNT GARDEN ━━━╮', '╰━━━━━━━━━━━━━━━━━━━━━━╯', '🌷'],
-    2: ['╭━━━ 💞 FUN BOULEVARD ━━━╮', '╰━━━━━━━━━━━━━━━━━━━━━━╯', '💞'],
-    3: ['╭━━━ 💎 ECONOMY PALACE ━━━╮', '╰━━━━━━━━━━━━━━━━━━━━━━━╯', '💎'],
-    4: ['╭━━━ 🎰 NEON CASINO ━━━╮', '╰━━━━━━━━━━━━━━━━━━━╯', '🎰'],
-    5: ['╭━━━ 🛡️ VIOLETTE GUARD ━━━╮', '╰━━━━━━━━━━━━━━━━━━━━━━━╯', '🛡️'],
-    6: ['╭━━━ 👥 INNER CIRCLE ━━━╮', '╰━━━━━━━━━━━━━━━━━━━━━━╯', '👥'],
-    7: ['╭━━━ 👑 ROYAL CONTROL ━━━╮', '╰━━━━━━━━━━━━━━━━━━━━━━━╯', '👑'],
-    8: ['╭━━━ 🌌 MOONLIGHT MODE ━━━╮', '╰━━━━━━━━━━━━━━━━━━━━━━━━╯', '🌌'],
+    1: ['01', '👤', 'USER PROFILE', 'Account, Datenschutz und persönliche Einstellungen'],
+    2: ['02', '✨', 'FUN ZONE', 'Community-Spiele und Unterhaltung'],
+    3: ['03', '💎', 'ECONOMY SYSTEM', 'Bitcoin, Shop, Bank und Belohnungen'],
+    4: ['04', '🎰', 'NEON CASINO', 'Spiele und virtuelle Einsätze'],
+    5: ['05', '🛡️', 'GROUP SECURITY', 'Moderation, Schutz und Gruppenverwaltung'],
+    6: ['06', '👥', 'TEAM & COMMUNITY', 'Support, Moderatoren und Community'],
+    7: ['07', '👑', 'OWNER CONTROL', 'Systemverwaltung und Owner-Werkzeuge'],
+    8: ['08', '🌌', 'MOONLIGHT MODE', 'Zusätzliche optionale Funktionen'],
   };
+  const visibleCategories = Object.entries(MENU_CATEGORIES)
+    .filter(([number]) => (number !== '7' || isCurrentOwner(context))
+      && (number !== '8' || isSpicyMenuVisible(context)));
+
   if (!category) {
-    const visibleCategories = Object.entries(MENU_CATEGORIES)
-      .filter(([number]) => (number !== '7' || isCurrentOwner(context))
-        && (number !== '8' || isSpicyMenuVisible(context)));
-    return `╭━━━ 🌸 VIOLETTE NEXUS 🌸 ━━━╮\n╰━━━━━━━━━━━━━━━━━━━━━━━━╯\n\n${Object.entries(MENU_CATEGORIES)
-      .filter(([number]) => (number !== '7' || isCurrentOwner(context))
-        && (number !== '8' || isSpicyMenuVisible(context)))
-      .map(([number, menu]) => `┃ ${prefix}menu${number}  ✦  ${menu.title}`)
-      .join('\n')}\n\n✦ Verfügbare Kategorien: ${visibleCategories.map(([number]) => `${prefix}menu${number}`).join(', ')}\n✦ ${prefix}commands zeigt alle registrierten Befehle`;
+    return [
+      '╭━━━━━━━━━━━━━━━━━━━━━━━━━━━━╮',
+      '       💜 PROJECT VIOLETTÉ',
+      '          N E X U S  V7',
+      '╰━━━━━━━━━━━━━━━━━━━━━━━━━━━━╯',
+      '',
+      '  ◈ CONTROL CENTER  •  SYSTEM ONLINE',
+      '  Wähle ein Modul, um fortzufahren.',
+      '',
+      ...visibleCategories.map(([number, menu]) => {
+        const [id, icon, label, description] = menuStyle[number] || [number, '✦', menu.title, ''];
+        return '  ┏ ' + id + '  ' + icon + '  ' + label + '\n  ┗ ' + prefix + 'menu' + number + ' · ' + description;
+      }),
+      '',
+      '  ────────────────────────────',
+      '  ✦ ' + prefix + 'commands  Alle Befehle',
+      '  ✦ DESIGN BY 7  ·  POWERED BY VIOLETTÉ',
+    ].join('\n');
   }
+
   const menu = MENU_CATEGORIES[category];
   if (!menu
     || (category === '7' && !isCurrentOwner(context))
     || (category === '8' && !isSpicyMenuVisible(context))) {
-    return `Dieses Menü gibt es nicht. Nutze ${prefix}menu für die Übersicht.`;
+    return 'Dieses Menü gibt es nicht. Nutze ' + prefix + 'menu für die Übersicht.';
   }
-  const [top, bottom, icon] = menuStyle[category] || [`╭━━━ ${menu.title} ━━━╮`, '╰━━━━━━━━━━━━━━━━╯', '✦'];
-  return `${top}\n${bottom}\n\n${menu.commands
-    .map(([command, description]) => `✦ ${prefix}${command}\n  └─ ${description}`)
-    .join('\n\n')}\n\n${icon} ${menu.title} • ${prefix}menu für Übersicht`;
+
+  const [id, icon, label, description] = menuStyle[category] || [String(category), '✦', menu.title, ''];
+  return [
+    '╭━━━━━━━━━━━━━━━━━━━━━━━━━━━━╮',
+    '       ' + icon + ' ' + label,
+    '             MODULE ' + id,
+    '╰━━━━━━━━━━━━━━━━━━━━━━━━━━━━╯',
+    '',
+    '  ' + description,
+    '  ' + menu.commands.length + ' verfügbare Befehle',
+    '',
+    ...menu.commands.map(([command, commandDescription], index) => (
+      '  ' + String(index + 1).padStart(2, '0') + '  ' + prefix + command + '\n      └ ' + commandDescription
+    )),
+    '',
+    '  ────────────────────────────',
+    '  ◀ ' + prefix + 'menu  ZURÜCK ZUM NEXUS',
+    '  ◈ DESIGN BY 7  ·  PROJECT VIOLETTÉ',
+  ].join('\n');
 }
 
 async function sendMenu(context, category) {
@@ -383,48 +413,67 @@ async function sendMenu(context, category) {
 
 async function sendInteractiveMenu(context, category) {
   const prefix = commandPrefix(context);
-  const message = category
-    ? proto.Message.fromObject({
+  const visibleCategories = Object.entries(MENU_CATEGORIES)
+    .filter(([number]) => (number !== '7' || isCurrentOwner(context))
+      && (number !== '8' || isSpicyMenuVisible(context)));
+
+  let message;
+  if (category) {
+    const menu = MENU_CATEGORIES[category];
+    if (!menu
+      || (category === '7' && !isCurrentOwner(context))
+      || (category === '8' && !isSpicyMenuVisible(context))) return;
+
+    message = proto.Message.fromObject({
       buttonsMessage: {
-        contentText: `Menü: ${MENU_CATEGORIES[category]?.title || category}`,
-        footerText: 'Project Violette',
+        contentText: '💜 ' + menu.title + '\nModul geöffnet · ' + menu.commands.length + ' Befehle\n\nDie vollständige Befehlsübersicht steht direkt über dieser Nachricht.',
+        footerText: 'PROJECT VIOLETTÉ · DESIGN BY 7',
         headerType: proto.Message.ButtonsMessage.HeaderType.EMPTY,
-        buttons: [{
-          buttonId: `${prefix}menu`,
-          buttonText: { displayText: 'Zurück zum Menü' },
-          type: proto.Message.ButtonsMessage.Button.Type.RESPONSE,
+        buttons: [
+          {
+            buttonId: prefix + 'menu',
+            buttonText: { displayText: '◀ Zurück zum Nexus' },
+            type: proto.Message.ButtonsMessage.Button.Type.RESPONSE,
+          },
+          {
+            buttonId: prefix + 'commands',
+            buttonText: { displayText: '✦ Alle Befehle' },
+            type: proto.Message.ButtonsMessage.Button.Type.RESPONSE,
+          },
+        ],
+      },
+    });
+  } else {
+    message = proto.Message.fromObject({
+      listMessage: {
+        title: '💜 PROJECT VIOLETTÉ',
+        description: 'NEXUS V7 · Wähle ein Modul aus.',
+        buttonText: 'CONTROL CENTER ÖFFNEN',
+        footerText: 'DESIGN BY 7 · SYSTEM ONLINE',
+        listType: proto.Message.ListMessage.ListType.SINGLE_SELECT,
+        sections: [{
+          title: '✦ VERFÜGBARE MODULE',
+          rows: visibleCategories.map(([number, menu]) => ({
+            rowId: prefix + 'menu' + number,
+            title: menu.title,
+            description: menu.commands.length + ' Befehle · Modul ' + String(number).padStart(2, '0'),
+          })),
         }],
       },
-    })
-    : proto.Message.fromObject({
-      listMessage: {
-        title: 'Project Violette',
-        description: 'Wähle eine Menü-Kategorie aus.',
-        buttonText: 'Menü öffnen',
-        footerText: 'Project Violette',
-        listType: proto.Message.ListMessage.ListType.SINGLE_SELECT,
-        sections: Object.entries(MENU_CATEGORIES)
-          .filter(([number]) => (number !== '7' || isCurrentOwner(context))
-            && (number !== '8' || isSpicyMenuVisible(context)))
-          .map(([number, menu]) => ({
-            title: menu.title,
-            rows: [{
-              rowId: `${prefix}menu${number}`,
-              title: menu.title,
-              description: `${menu.commands.length} Befehle`,
-            }],
-          })),
-      },
     });
+  }
+
   try {
-    const generated = generateWAMessageFromContent(context.jid, message, {
-      userJid: context.sock.user.id,
-    });
+    const userJid = context.sock.user?.id || context.sock.user?.jid;
+    if (!userJid) throw new Error('WhatsApp-Bot-JID ist noch nicht verfügbar.');
+    const generated = generateWAMessageFromContent(context.jid, message, { userJid });
     await context.sock.relayMessage(context.jid, generated.message, {
       messageId: generated.key.id,
     });
   } catch (error) {
-    console.error('Experimentelle Baileys-Menübuttons konnten nicht gesendet werden:', error);
+    // Das Textmenü bleibt der zuverlässige Fallback, falls WhatsApp den
+    // jeweiligen interaktiven Nachrichtentyp auf diesem Client ablehnt.
+    console.error('Interaktives Violetté-Menü nicht verfügbar; Textmenü bleibt aktiv:', error);
   }
 }
 
