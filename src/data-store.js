@@ -3,6 +3,7 @@ const path = require('path');
 
 const DEFAULT_DATA = {
   users: {},
+  userAliases: {},
   mods: [],
   support: [],
   settings: { prefix: '#' },
