@@ -120,9 +120,59 @@ module.exports = (runtime) => {
   {
     order: 59460,
     register() {
-      register(['profile', 'pb'], 'Account anzeigen', async (ctx) => {
+      register(['profile'], 'Eigenes PV-Profil anzeigen', async (ctx) => {
         const account = user(ctx);
-        await ctx.reply(`👤 ${account.displayName || 'Unregistriert'}\n₿ Bitcoin: ${account.bitcoin}\n⭐ VIP: ${isVip(account) ? 'aktiv' : 'inaktiv'}`);
+        await ctx.reply(\`👤 \${account.displayName || 'Unregistriert'}\n₿ Bitcoin: \${account.bitcoin}\n⭐ VIP: \${isVip(account) ? 'aktiv' : 'inaktiv'}\`);
+      });
+      register(['pb'], 'WhatsApp-Profilbild und öffentliche Profildaten einer Nummer anzeigen', async (ctx) => {
+        const rawNumber = ctx.args.join('').replace(/[^\d]/g, '');
+        if (!rawNumber || rawNumber.length < 7 || rawNumber.length > 15) {
+          return ctx.reply(\`Nutzung: \${commandPrefix(ctx)}pb <Ländervorwahl + Nummer>\nBeispiel: \${commandPrefix(ctx)}pb 491701234567\`);
+        }
+        let registration;
+        try {
+          if (typeof ctx.sock.onWhatsApp !== 'function') {
+            return ctx.reply('❌ Diese Baileys-Version unterstützt die WhatsApp-Registrierungsabfrage nicht.');
+          }
+          const results = await ctx.sock.onWhatsApp(rawNumber);
+          registration = Array.isArray(results) ? results.find((entry) => entry?.jid) : null;
+        } catch (error) {
+          console.error('WhatsApp-Registrierungsabfrage fehlgeschlagen:', error);
+          return ctx.reply('⚠️ Die WhatsApp-Registrierung konnte gerade nicht abgefragt werden.');
+        }
+        if (!registration?.exists) {
+          return ctx.reply(\`🔎 Nummer: +\${rawNumber}\n📱 Bei WhatsApp registriert: Nein\n🖼️ Profilbild: nicht verfügbar\`);
+        }
+        const targetJid = registration.jid;
+        let statusText = 'Nicht öffentlich abrufbar';
+        try {
+          if (typeof ctx.sock.fetchStatus === 'function') {
+            const status = await ctx.sock.fetchStatus(targetJid);
+            const entry = Array.isArray(status) ? status[0] : status;
+            if (typeof entry?.status === 'string' && entry.status.trim()) statusText = entry.status.trim();
+          }
+        } catch (error) {
+          console.error('WhatsApp-Info konnte nicht geladen werden:', error.message);
+        }
+        const caption = [
+          '🪪 WHATSAPP-PROFIL',
+          \`📞 Nummer: +\${rawNumber}\`,
+          '📱 Bei WhatsApp registriert: Ja',
+          \`📝 Info/Status: \${statusText}\`,
+          '🚫 WhatsApp-Bann: Nicht öffentlich feststellbar',
+          '🗓️ Bann seit: Nicht verfügbar',
+          '📅 Registrierungsdatum: Nicht öffentlich verfügbar',
+        ].join('\n');
+        try {
+          const picture = await ctx.sock.profilePictureUrl(targetJid, 'image');
+          if (picture) {
+            await ctx.sock.sendMessage(ctx.jid, { image: { url: picture }, caption });
+            return;
+          }
+        } catch (error) {
+          console.error('WhatsApp-Profilbild konnte nicht geladen werden:', error.message);
+        }
+        await ctx.reply(\`\${caption}\n🖼️ Profilbild: Nicht sichtbar oder nicht freigegeben.\`);
       });
     },
   },
