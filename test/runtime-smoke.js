@@ -75,6 +75,16 @@ async function run() {
   assert.strictEqual(aliasedData.userAliases['123456789'], '491701234567');
   assert.strictEqual(aliasedData.users['491701234567'].bitcoin, 250);
   assert.strictEqual(aliasedData.userTodos['491701234567'][0].text, 'Test');
+  const mergedData = { users: {
+    '491701234567': { bitcoin: 100, inventory: ['crown'], displayName: 'Main' },
+    '123456789': { bitcoin: 250, inventory: ['rose'], displayName: 'Legacy' },
+  } };
+  await resolveSenderNumber({
+    signalRepository: { lidMapping: { getPNForLID: async () => '491701234567@s.whatsapp.net' } },
+  }, { participant: '123456789@lid', remoteJid: '123@g.us' }, mergedData);
+  assert.strictEqual(mergedData.users['491701234567'].bitcoin, 350);
+  assert.deepStrictEqual(mergedData.users['491701234567'].inventory.sort(), ['crown', 'rose']);
+  assert.strictEqual(mergedData.users['491701234567'].displayName, 'Main');
   assert.throws(() => assertAuthAccount({
     creds: { me: { id: '491701234567@s.whatsapp.net' } },
   }, config), /eigenen AUTH_DIRECTORY/);
