@@ -24,9 +24,16 @@ function migrateUserAlias(data, alias, canonical) {
   if (oldAccount) {
     data.users[canonical] ||= oldAccount;
     if (data.users[canonical] !== oldAccount) {
+      const currentAccount = data.users[canonical];
+      currentAccount.bitcoin = (Number(currentAccount.bitcoin) || 0) + (Number(oldAccount.bitcoin ?? oldAccount.coins) || 0);
+      currentAccount.inventory = [...new Set([
+        ...(Array.isArray(currentAccount.inventory) ? currentAccount.inventory : []),
+        ...(Array.isArray(oldAccount.inventory) ? oldAccount.inventory : []),
+      ])];
       for (const [key, value] of Object.entries(oldAccount)) {
-        if (data.users[canonical][key] === undefined || data.users[canonical][key] === null) {
-          data.users[canonical][key] = value;
+        if (key === 'bitcoin' || key === 'coins' || key === 'inventory') continue;
+        if (currentAccount[key] === undefined || currentAccount[key] === null || currentAccount[key] === '') {
+          currentAccount[key] = value;
         }
       }
     }
