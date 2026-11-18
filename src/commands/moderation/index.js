@@ -23,6 +23,7 @@ module.exports = (runtime) => {
     user,
     displayName,
     displayUser,
+    resolvePhoneNumber,
     mentionJid,
     requireRole,
     isOwner,
@@ -288,8 +289,23 @@ module.exports = (runtime) => {
       register(['tagall'], 'Alle Gruppenmitglieder erwähnen', async (ctx) => {
         const metadata = await requireBotAdmin(ctx);
         if (!metadata) return;
-        const mentions = metadata.participants.map((participant) => participant.id);
-        await ctx.sock.sendMessage(ctx.jid, { text: ctx.args.join(' ') || '📢 Alle', mentions });
+        const participants = await Promise.all(metadata.participants.map(async (participant) => {
+          const participantJid = participant.phoneNumber || participant.id || participant.lid;
+          const hasPhoneNumber = Boolean(participant.phoneNumber);
+          const phoneNumber = hasPhoneNumber
+            ? ctx.normalizeJid(participant.phoneNumber)
+            : await resolvePhoneNumber(ctx, participantJid);
+          const sourceIsLid = String(participantJid || '').endsWith('@lid')
+            || String(participantJid || '').endsWith('@hosted.lid');
+          const mentionJid = sourceIsLid && phoneNumber === ctx.normalizeJid(participantJid)
+            ? participantJid
+            : `${phoneNumber}@s.whatsapp.net`;
+          return { mentionJid, label: `@${ctx.normalizeJid(mentionJid)}` };
+        }));
+        const mentions = [...new Set(participants.map(({ mentionJid }) => mentionJid))];
+        const mentionText = participants.map(({ label }) => label).join(' ');
+        const text = [ctx.args.join(' ').trim() || '📢 Alle', mentionText].filter(Boolean).join('\n');
+        await ctx.sock.sendMessage(ctx.jid, { text, mentions });
       });
     },
   },

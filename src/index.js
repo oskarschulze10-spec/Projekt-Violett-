@@ -8,7 +8,7 @@ const {
   useMultiFileAuthState,
 } = require('@whiskeysockets/baileys');
 const { loadConfig } = require('./config');
-const { createDataStore } = require('./data-store');
+const { createDataStore, PRIVACY_VERSION } = require('./data-store');
 const { commands, createCommandContext } = require('./commands');
 
 function normalizedJid(jid) {
@@ -25,7 +25,8 @@ function migrateUserAlias(data, alias, canonical) {
     data.users[canonical] ||= oldAccount;
     if (data.users[canonical] !== oldAccount) {
       const currentAccount = data.users[canonical];
-      currentAccount.bitcoin = (Number(currentAccount.bitcoin) || 0) + (Number(oldAccount.bitcoin ?? oldAccount.coins) || 0);
+      currentAccount.bitcoin = (Number(currentAccount.bitcoin) || 0)
+        + (Number(oldAccount.bitcoin ?? oldAccount.coins) || 0);
       currentAccount.inventory = [...new Set([
         ...(Array.isArray(currentAccount.inventory) ? currentAccount.inventory : []),
         ...(Array.isArray(oldAccount.inventory) ? oldAccount.inventory : []),
@@ -51,23 +52,46 @@ function migrateUserAlias(data, alias, canonical) {
   }
 }
 
-async function resolveSenderNumber(sock, messageKey, data) {
+function normalizedLid(jid) {
+  const value = String(jid || '');
+  const separator = value.lastIndexOf('@');
+  if (separator < 0) return null;
+  const server = value.slice(separator);
+  if (server !== '@lid' && server !== '@hosted.lid') return null;
+  return `${value.slice(0, separator).split(':')[0]}${server}`;
+}
+
+function phoneNumberFromStoredLid(data, candidates) {
+  const lids = candidates.map(normalizedLid).filter(Boolean).map(normalizedJid);
+  if (!lids.length) return null;
+  const account = Object.values(data?.users || {}).find((entry) => (
+    entry?.phoneNumber
+    && [entry.lid, ...(Array.isArray(entry.lids) ? entry.lids : [])]
+      .some((lid) => lids.includes(normalizedJid(lid)))
+  ));
+  return account?.phoneNumber ? normalizedJid(account.phoneNumber) : null;
+}
+
+async function resolveSenderPhoneNumber(sock, messageKey, data) {
   const isGroup = String(messageKey?.remoteJid || '').endsWith('@g.us');
   const candidates = [
     messageKey?.participantAlt,
     messageKey?.participant,
     ...(!isGroup ? [messageKey?.remoteJidAlt, messageKey?.remoteJid] : []),
   ].filter((jid) => typeof jid === 'string' && jid.includes('@'));
-  const phoneJid = candidates.find((jid) => (
+
+  const phoneJid = candidates.find((jid) =>
     jid.endsWith('@s.whatsapp.net') || jid.endsWith('@hosted')
-  ));
-  const lidCandidates = candidates.filter((jid) => (
+  );
+  const lidCandidates = candidates.filter((jid) =>
     jid.endsWith('@lid') || jid.endsWith('@hosted.lid')
-  ));
+  );
 
   if (phoneJid) {
     const canonical = normalizedJid(phoneJid);
-    for (const lid of lidCandidates) migrateUserAlias(data, normalizedJid(lid), canonical);
+    for (const lid of lidCandidates) {
+      migrateUserAlias(data, normalizedJid(lid), canonical);
+    }
     return canonical;
   }
 
@@ -87,15 +111,49 @@ async function resolveSenderNumber(sock, messageKey, data) {
     }
   }
 
-  data && (data.userAliases ||= {});
   for (const jid of lidCandidates) {
-    const alias = normalizedJid(jid);
-    const canonical = data?.userAliases?.[alias];
+    const canonical = data?.userAliases?.[normalizedJid(jid)];
     if (canonical) return canonical;
   }
-  return normalizedJid(candidates[0]);
+
+  return phoneNumberFromStoredLid(data, candidates);
 }
 
+async function resolveSenderNumber(sock, messageKey, data) {
+  const phoneNumber = await resolveSenderPhoneNumber(sock, messageKey, data);
+  if (phoneNumber) return phoneNumber;
+
+  const candidates = [
+    messageKey?.participantAlt,
+    messageKey?.participant,
+    messageKey?.remoteJidAlt,
+    messageKey?.remoteJid,
+  ].filter(Boolean);
+
+  return normalizedJid(candidates[0]);
+}
+async function resolveSenderLid(sock, messageKey, phoneNumber) {
+  const candidates = [
+    messageKey?.participant,
+    messageKey?.participantAlt,
+    messageKey?.remoteJid,
+    messageKey?.remoteJidAlt,
+  ].filter(Boolean);
+
+  const lidJid = candidates.map(normalizedLid).find(Boolean);
+  if (lidJid) return lidJid;
+
+  const lidMapping = sock.signalRepository?.lidMapping;
+  if (phoneNumber && lidMapping?.getLIDForPN) {
+    try {
+      return normalizedLid(await lidMapping.getLIDForPN(`${phoneNumber}@s.whatsapp.net`));
+    } catch (error) {
+      console.error(`LID-Zuordnung für ${phoneNumber} konnte nicht geladen werden:`, error.message);
+    }
+  }
+
+  return null;
+}
 function assertAuthAccount(state, config) {
   const accountJid = String(state?.creds?.me?.id || '');
   if (!accountJid.endsWith('@s.whatsapp.net')) return;
@@ -103,7 +161,7 @@ function assertAuthAccount(state, config) {
   if (accountNumber !== config.botNumber) {
     throw new Error(
       `Der Auth-Ordner ist mit ${accountNumber} gekoppelt, erwartet wird aber BOT_NUMBER ${config.botNumber}. `
-      + 'Nutze einen eigenen AUTH_DIRECTORY für das Bot-Konto; die bestehende Owner-Sitzung bleibt unverändert.',
+      + 'Nutze einen eigenen AUTH_DIRECTORY f├╝r das Bot-Konto; die bestehende Owner-Sitzung bleibt unver├ñndert.',
     );
   }
 }
@@ -112,18 +170,18 @@ function resetBotAuth(state, config) {
   const authDirectory = path.resolve(config.authDirectory);
   const dataFile = path.resolve(config.dataFile);
   if (authDirectory === path.parse(authDirectory).root || authDirectory === path.resolve('.')) {
-    throw new Error('Der Bot-Auth-Ordner ist zu allgemein; automatisches Zurücksetzen wurde verweigert.');
+    throw new Error('Der Bot-Auth-Ordner ist zu allgemein; automatisches Zur├╝cksetzen wurde verweigert.');
   }
   const dataRelativePath = path.relative(authDirectory, dataFile);
   if (!dataRelativePath.startsWith(`..${path.sep}`) && !path.isAbsolute(dataRelativePath)) {
-    throw new Error('Die Bot-Datendatei liegt im Auth-Ordner; automatisches Zurücksetzen wurde verweigert.');
+    throw new Error('Die Bot-Datendatei liegt im Auth-Ordner; automatisches Zur├╝cksetzen wurde verweigert.');
   }
   const accountJid = String(state?.creds?.me?.id || '');
   if (accountJid.endsWith('@s.whatsapp.net')) {
     const accountNumber = normalizedJid(accountJid);
     if (accountNumber !== config.botNumber) {
       throw new Error(
-        `Der Auth-Ordner gehört ${accountNumber}, nicht BOT_NUMBER ${config.botNumber}; er wurde nicht verändert.`,
+        `Der Auth-Ordner geh├Ârt ${accountNumber}, nicht BOT_NUMBER ${config.botNumber}; er wurde nicht ver├ñndert.`,
       );
     }
   }
@@ -151,7 +209,7 @@ function interactiveButtonId(content) {
       const parsed = JSON.parse(params);
       return parsed.id || parsed.selectedId || parsed.row_id || parsed.button_id || '';
     } catch (error) {
-      console.error('Interaktive Menüantwort enthält ungültiges JSON:', error);
+      console.error('Interaktive Men├╝antwort enth├ñlt ung├╝ltiges JSON:', error);
     }
   }
   return '';
@@ -192,6 +250,58 @@ function isBanned(data, sender) {
   return false;
 }
 
+function commandSocketWithDesign(sock, jid, design) {
+  let designSent = false;
+  let messageSent = false;
+
+  const commandSock = new Proxy(sock, {
+    get(target, property) {
+      if (property === 'sendMessage') {
+        return (targetJid, content, ...args) => {
+          if (targetJid !== jid) {
+            return target.sendMessage(targetJid, content, ...args);
+          }
+
+          const isPlainText = content
+            && typeof content === 'object'
+            && typeof content.text === 'string'
+            && Object.keys(content).every((key) => key === 'text');
+
+          if (!isPlainText) {
+            messageSent = true;
+            return target.sendMessage(targetJid, content, ...args);
+          }
+
+          if (designSent) return undefined;
+
+          designSent = true;
+          messageSent = true;
+          return target.sendMessage(targetJid, { text: design });
+        };
+      }
+
+      if (property === 'relayMessage') {
+        return (targetJid, ...args) => {
+          if (targetJid === jid) messageSent = true;
+          return target.relayMessage(targetJid, ...args);
+        };
+      }
+
+      return Reflect.get(target, property, target);
+    },
+  });
+
+  return {
+    sock: commandSock,
+    async sendDesignIfNeeded() {
+      if (!designSent && !messageSent) {
+        designSent = true;
+        messageSent = true;
+        await sock.sendMessage(jid, { text: design });
+      }
+    },
+  };
+}
 async function dispatchMessage({
   sock,
   message,
@@ -201,13 +311,26 @@ async function dispatchMessage({
   logger,
   receivedAt = Date.now(),
 }) {
-  if (message.key?.fromMe || !message.key?.remoteJid) return false;
+  if (!message.key?.remoteJid) return false;
+  const isGroup = message.key.remoteJid.endsWith('@g.us');
+  const fromMe = Boolean(message.key.fromMe);
+  if (fromMe && (!isGroup || normalizedJid(sock.user?.id) !== config.botNumber)) return false;
+  const phoneNumber = fromMe
+    ? config.botNumber
+    : await resolveSenderPhoneNumber(sock, message.key, data);
+  const candidates = [
+    message.key?.participantAlt,
+    message.key?.remoteJidAlt,
+    message.key?.participant,
+    message.key?.remoteJid,
+  ].filter(Boolean);
+  const sender = fromMe ? config.botNumber : (phoneNumber || normalizedJid(candidates[0]));
+  const isOwner = config.ownerNumbers.includes(sender);
+  if (!isGroup && !isOwner) return false;
+
   const prefix = data.settings.prefix || config.prefix;
   const text = messageText(message);
   if (!String(text).trimStart().startsWith(prefix)) return false;
-  const isGroup = message.key.remoteJid.endsWith('@g.us');
-  const sender = await resolveSenderNumber(sock, message.key, data);
-  const isOwner = config.ownerNumbers.includes(sender);
   if (isGroup && data.groupIgnore[message.key.remoteJid] && !isOwner) return false;
   if (!isGroup && data.blockedPrivateChats.includes(sender) && !isOwner) return false;
   if (isBanned(data, sender) && !isOwner) return false;
@@ -216,6 +339,24 @@ async function dispatchMessage({
   const parsed = commandFromText(text, prefix);
   if (!parsed) return false;
   const resolvedName = data.aliases[parsed.name] || parsed.name;
+  if (!isOwner) {
+    const account = data.users[sender];
+    const onboardingCommands = new Set(['dsgvo', 'register', 'privacy', 'deleteaccount']);
+    if ((!account?.privacyAccepted || account.privacyVersion !== PRIVACY_VERSION)
+      && !['dsgvo', 'privacy', 'deleteaccount'].includes(resolvedName)) {
+      await sock.sendMessage(message.key.remoteJid, {
+        text: `­ƒöÆ Akzeptiere zuerst die Datenschutzinformationen mit ${prefix}dsgvo.`,
+      });
+      return true;
+    }
+    if ((!account?.registeredAt || !account.phoneNumber)
+      && !onboardingCommands.has(resolvedName)) {
+      await sock.sendMessage(message.key.remoteJid, {
+        text: `­ƒöÆ Registriere dich zuerst mit ${prefix}register <Name>.`,
+      });
+      return true;
+    }
+  }
   const command = commands.get(resolvedName);
   if (!command) return false;
   logger?.info({
@@ -227,24 +368,48 @@ async function dispatchMessage({
 
   if (data.settings.maintenance && !isOwner && !['maintenance', 'maint'].includes(resolvedName)) {
     await sock.sendMessage(message.key.remoteJid, {
-      text: '🔧 Der Bot befindet sich gerade im Wartungsmodus.',
+      text: '­ƒöº Der Bot befindet sich gerade im Wartungsmodus.',
     });
     return true;
   }
   if (data.settings.commandMaintenance?.[resolvedName] && !isOwner) {
     await sock.sendMessage(message.key.remoteJid, {
-      text: `🔧 Der Befehl ${prefix}${resolvedName} ist vorübergehend in Wartung.`,
+      text: `­ƒöº Der Befehl ${prefix}${resolvedName} ist vor├╝bergehend in Wartung.`,
     });
     return true;
   }
 
+  const canonicalName = command.names[0];
+  const design = data.settings.commandDesigns?.[canonicalName];
+  const designSocket = typeof design === 'string' && design.trim()
+    ? commandSocketWithDesign(sock, message.key.remoteJid, design)
+    : null;
+
+  const senderLid = isGroup ? await resolveSenderLid(sock, message.key, phoneNumber) : null;
+  const account = data.users[sender];
+  if (account?.privacyAccepted
+    && account.privacyVersion === PRIVACY_VERSION
+    && phoneNumber
+    && senderLid) {
+    const knownLids = new Set([
+      account.lid,
+      ...(Array.isArray(account.lids) ? account.lids : []),
+    ].filter(Boolean));
+    if (!knownLids.has(senderLid)) {
+      account.lid ||= senderLid;
+      account.lids = [...knownLids, senderLid];
+      saveData();
+    }
+  }
   const context = createCommandContext({
-    sock,
+    sock: designSocket?.sock || sock,
     message,
     data,
     saveData,
     jid: message.key.remoteJid,
     sender,
+    phoneNumber,
+    senderLid,
     isGroup,
     args: parsed.args,
     prefix,
@@ -252,17 +417,19 @@ async function dispatchMessage({
     ownerNumbers: config.ownerNumbers,
     responseDelayMs: Math.max(0, Date.now() - receivedAt),
     commandName: resolvedName,
+    rawText: text,
     normalizeJid: normalizedJid,
   });
   try {
     await command.handler(context);
+    if (designSocket) await designSocket.sendDesignIfNeeded();
   } catch (error) {
     console.error(`Befehl ${resolvedName} ist fehlgeschlagen:`, error);
     try {
       await sock.sendMessage(message.key.remoteJid, {
         text: error?.data === 403 || error?.output?.payload?.statusCode === 403
-          ? 'WhatsApp hat die Gruppenaktion verweigert (403). Prüfe, ob die Bot-Nummer in dieser Gruppe Admin ist und die Aktion für das Zielmitglied erlaubt ist. Die Owner-Rolle im Bot verleiht keine WhatsApp-Adminrechte.'
-          : 'Beim Ausführen des Befehls ist ein Fehler aufgetreten.',
+          ? 'WhatsApp hat die Gruppenaktion verweigert (403). Pr├╝fe, ob die Bot-Nummer in dieser Gruppe Admin ist und die Aktion f├╝r das Zielmitglied erlaubt ist. Die Owner-Rolle im Bot verleiht keine WhatsApp-Adminrechte.'
+          : 'Beim Ausf├╝hren des Befehls ist ein Fehler aufgetreten.',
       });
     } catch (replyError) {
       console.error(`Fehlermeldung zu ${resolvedName} konnte nicht gesendet werden:`, replyError);
@@ -297,9 +464,9 @@ async function startBot(config = loadConfig()) {
     sock.ev.on('creds.update', saveCreds);
     sock.ev.on('connection.update', ({ qr }) => {
       if (!qr) return;
-      console.log(`WhatsApp-QR-Code für das Bot-Konto ${config.botNumber}:`);
+      console.log(`WhatsApp-QR-Code f├╝r das Bot-Konto ${config.botNumber}:`);
       qrcode.generate(qr, { small: true });
-      console.log('Mit WhatsApp auf dem Bot-Konto scannen: Verknüpfte Geräte > Gerät hinzufügen.');
+      console.log('Mit WhatsApp auf dem Bot-Konto scannen: Verkn├╝pfte Ger├ñte > Ger├ñt hinzuf├╝gen.');
     });
     sock.ev.on('messages.upsert', async ({ messages, type }) => {
       if (type !== 'notify') return;
@@ -322,14 +489,14 @@ async function startBot(config = loadConfig()) {
     sock.ev.on('connection.update', ({ connection, lastDisconnect }) => {
       if (connection === 'open') {
         console.log('');
-        console.log('\x1b[95m╭────────────────────────────────────────────╮');
-        console.log('│           🌸  PROJECT VIOLETTE  🌸          │');
-        console.log('├────────────────────────────────────────────┤');
-        console.log(`│  Status   \x1b[92m● ONLINE\x1b[95m                            │`);
-        console.log(`│  Bot      ${normalizedJid(sock.user?.id).padEnd(34)}│`);
-        console.log(`│  Owner    ${config.ownerNumber.padEnd(34)}│`);
-        console.log(`│  Befehle  beginnen mit ${config.prefix.padEnd(17)}│`);
-        console.log('╰────────────────────────────────────────────╯\x1b[0m');
+        console.log('\x1b[95mÔò¡ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔò«');
+        console.log('Ôöé           ­ƒî©  PROJECT VIOLETTE  ­ƒî©          Ôöé');
+        console.log('Ôö£ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöñ');
+        console.log(`Ôöé  Status   \x1b[92mÔùÅ ONLINE\x1b[95m                            Ôöé`);
+        console.log(`Ôöé  Bot      ${normalizedJid(sock.user?.id).padEnd(34)}Ôöé`);
+        console.log(`Ôöé  Owner    ${config.ownerNumber.padEnd(34)}Ôöé`);
+        console.log(`Ôöé  Befehle  beginnen mit ${config.prefix.padEnd(17)}Ôöé`);
+        console.log('Ôò░ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔò»\x1b[0m');
         console.log('');
         return;
       }
@@ -339,10 +506,10 @@ async function startBot(config = loadConfig()) {
         try {
           resetBotAuth(state, config);
         } catch (error) {
-          console.error('Abgemeldete Bot-Sitzung konnte nicht sicher zurückgesetzt werden:', error.message);
+          console.error('Abgemeldete Bot-Sitzung konnte nicht sicher zur├╝ckgesetzt werden:', error.message);
           return;
         }
-        console.error('Bot-Sitzung abgemeldet; Bot-Anmeldung wird zurückgesetzt und ein neuer QR-Code angefordert.');
+        console.error('Bot-Sitzung abgemeldet; Bot-Anmeldung wird zur├╝ckgesetzt und ein neuer QR-Code angefordert.');
       }
       if (reconnectTimer) return;
       console.error(`Verbindung getrennt (Status ${statusCode || 'unbekannt'}); neuer Verbindungsversuch in 5 Sekunden.`);
@@ -396,6 +563,8 @@ module.exports = {
   messageTimestampMs,
   normalizedJid,
   resolveSenderNumber,
+  resolveSenderPhoneNumber,
+  resolveSenderLid,
   createBaileysConfig,
   startBot,
   unwrapMessage,

@@ -1,4 +1,4 @@
-const assert = require('assert');
+﻿const assert = require('assert');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
@@ -11,10 +11,11 @@ const {
   messageText,
   normalizedJid,
   resolveSenderNumber,
+  resolveSenderLid,
   createBaileysConfig,
 } = require('../src');
 const { loadConfig } = require('../src/config');
-const { DEFAULT_DATA } = require('../src/data-store');
+const { createDataStore, DEFAULT_DATA, PRIVACY_VERSION } = require('../src/data-store');
 const { commands } = require('../src/commands');
 
 async function run() {
@@ -23,8 +24,8 @@ async function run() {
   assert.strictEqual('shouldSyncHistoryMessage' in baileysConfig, false);
 
   const uniqueCommands = new Set(commands.values());
-  assert.strictEqual(commands.size, 157);
-  assert.strictEqual(uniqueCommands.size, 134);
+  assert.strictEqual(commands.size, 161);
+  assert.strictEqual(uniqueCommands.size, 139);
   assert.ok([...uniqueCommands].every((command) => (
     typeof command.handler === 'function'
     && command.names.length > 0
@@ -41,7 +42,7 @@ async function run() {
   });
   assert.strictEqual(config.ownerNumber, '491701234567');
   assert.strictEqual(config.botNumber, '491701234568');
-  assert.deepStrictEqual(config.ownerNumbers, ['491701234567']);
+  assert.deepStrictEqual(config.ownerNumbers, ['491701234567', '491701234568']);
   assert.throws(() => loadConfig({
     OWNER_NUMBER: '491701234567',
     BOT_NUMBER: '491701234567',
@@ -85,6 +86,18 @@ async function run() {
   assert.strictEqual(mergedData.users['491701234567'].bitcoin, 350);
   assert.deepStrictEqual(mergedData.users['491701234567'].inventory.sort(), ['crown', 'rose']);
   assert.strictEqual(mergedData.users['491701234567'].displayName, 'Main');
+  assert.strictEqual(await resolveSenderLid({}, {
+    participant: '123456789:3@lid',
+  }, '491701234567'), '123456789@lid');
+  assert.strictEqual(await resolveSenderLid({
+    signalRepository: {
+      lidMapping: {
+        getLIDForPN: async () => '987654321:2@lid',
+      },
+    },
+  }, {
+    participant: '491701234567@s.whatsapp.net',
+  }, '491701234567'), '987654321@lid');
   assert.throws(() => assertAuthAccount({
     creds: { me: { id: '491701234567@s.whatsapp.net' } },
   }, config), /eigenen AUTH_DIRECTORY/);
@@ -102,7 +115,7 @@ async function run() {
     ...config,
     authDirectory: temporaryAuthDirectory,
     dataFile: temporaryDataFile,
-  }), /wurde nicht verändert/);
+  }), Error);
   assert.ok(fs.existsSync(temporaryAuthDirectory));
   resetBotAuth({
     creds: { me: { id: '491701234568:2@s.whatsapp.net' } },
@@ -113,6 +126,41 @@ async function run() {
   });
   assert.ok(!fs.existsSync(temporaryAuthDirectory));
   fs.rmSync(temporaryDirectory, { recursive: true, force: true });
+
+  const userStoreDirectory = fs.mkdtempSync(path.join(os.tmpdir(), 'violette-users-'));
+  const userStore = createDataStore(path.join(userStoreDirectory, 'data', 'bot-data.json'));
+  const userFilesDirectory = path.join(userStoreDirectory, 'data', 'users');
+  assert.ok(fs.existsSync(userFilesDirectory));
+  userStore.data.users['491701234567'] = {
+    privacyAccepted: true,
+    privacyVersion: PRIVACY_VERSION - 1,
+    phoneNumber: '491701234567',
+    lid: '123456789@lid',
+    displayName: 'Test User',
+    registeredAt: '2026-01-01T00:00:00.000Z',
+  };
+  userStore.saveData();
+  assert.deepStrictEqual(fs.readdirSync(userFilesDirectory), []);
+  userStore.data.users['491701234567'].privacyVersion = PRIVACY_VERSION;
+  userStore.data.users['491701234567'].lid = null;
+  userStore.saveData();
+  assert.deepStrictEqual(fs.readdirSync(userFilesDirectory), []);
+  userStore.data.users['491701234567'].lid = '123456789@lid';
+  userStore.saveData();
+  const userFiles = fs.readdirSync(userFilesDirectory);
+  assert.strictEqual(userFiles.length, 1);
+  const userRecord = JSON.parse(fs.readFileSync(path.join(userFilesDirectory, userFiles[0]), 'utf8'));
+  assert.strictEqual(userRecord.phoneNumber, '491701234567');
+  assert.strictEqual(userRecord.lid, '123456789@lid');
+  userStore.data.users['491701234567'].displayName = 'Updated User';
+  userStore.saveData();
+  const updatedRecord = JSON.parse(fs.readFileSync(path.join(userFilesDirectory, userFiles[0]), 'utf8'));
+  assert.strictEqual(updatedRecord.displayName, 'Updated User');
+  delete userStore.data.users['491701234567'];
+  userStore.saveData();
+  assert.deepStrictEqual(fs.readdirSync(userFilesDirectory), []);
+  fs.rmSync(userStoreDirectory, { recursive: true, force: true });
+
   assert.deepStrictEqual(commandFromText('#menu1', '#'), { name: 'menu1', args: [] });
   assert.strictEqual(commandFromText('menu1', '#'), null);
 
@@ -185,7 +233,7 @@ async function run() {
       message: { conversation: '#prefix set !' },
     },
   });
-  assert.match(sent[1].content.text, /Neuer Präfix: !/);
+  assert.match(sent[1].content.text, /Neuer PrÃ¤fix: !/);
   assert.strictEqual(data.settings.prefix, '!');
   await dispatchMessage({
     ...common,
@@ -205,6 +253,248 @@ async function run() {
   }), false);
   assert.strictEqual(sent.length, sentBeforeOldPrefix);
   data.settings.prefix = '#';
+
+  const registeredNumber = '491700000002';
+  const registrationGroup = '120363400000000000@g.us';
+  const sendGroupCommand = (text) => dispatchMessage({
+    ...common,
+    message: {
+      key: {
+        remoteJid: registrationGroup,
+        participant: '123456789:3@lid',
+        participantAlt: `${registeredNumber}@s.whatsapp.net`,
+        fromMe: false,
+      },
+      message: { conversation: text },
+    },
+  });
+  const privateMessageCount = sent.length;
+  assert.strictEqual(await dispatchMessage({
+    ...common,
+    message: {
+      key: { remoteJid: `${registeredNumber}@s.whatsapp.net`, fromMe: false },
+      message: { conversation: '#ping' },
+    },
+  }), false);
+  assert.strictEqual(await dispatchMessage({
+    ...common,
+    message: {
+      key: { remoteJid: `${registeredNumber}@s.whatsapp.net`, fromMe: false },
+      message: { conversation: 'hello bot' },
+    },
+  }), false);
+  assert.strictEqual(sent.length, privateMessageCount);
+
+  await sendGroupCommand('#menu');
+  assert.match(sent[sent.length - 1].content.text, /#dsgvo/);
+  await sendGroupCommand('#dsgvo');
+  assert.match(sent[sent.length - 1].content.text, /data\/users\//);
+  await sendGroupCommand('#dsgvo akzeptieren');
+  assert.strictEqual(data.users[registeredNumber].privacyVersion, PRIVACY_VERSION);
+  assert.strictEqual(data.users[registeredNumber].lid, '123456789@lid');
+  await sendGroupCommand('#menu');
+  assert.match(sent[sent.length - 1].content.text, /#register <Name>/);
+  await sendGroupCommand('#register Test User');
+  assert.strictEqual(data.users[registeredNumber].displayName, 'Test User');
+  assert.strictEqual(data.users[registeredNumber].phoneNumber, registeredNumber);
+  assert.deepStrictEqual(data.users[registeredNumber].lids, ['123456789@lid']);
+  assert.ok(data.users[registeredNumber].registeredAt);
+  Object.assign(data.users[registeredNumber], {
+    bitcoin: 420,
+    vipUntil: Date.now() + 10 * 86400000,
+    secretLover: 'private value',
+    secretMommy: 'private value',
+    secretDaddy: 'private value',
+  });
+  await sendGroupCommand('#me');
+  const memberCard = sent[sent.length - 1].content.text;
+  assert.match(memberCard, /Name: Test User/);
+  assert.match(memberCard, /Rang: Nutzer/);
+  assert.match(memberCard, /Bitcoin: 420/);
+  assert.match(memberCard, /Registriert:/);
+  assert.match(memberCard, /VIP: Ja \(10 Tage\)/);
+  assert.match(memberCard, /LID \(JID\): 123456789@lid/);
+  assert.doesNotMatch(memberCard, /Secret (Lover|Mommy|Daddy)|private value|Styles:/);
+
+  await dispatchMessage({
+    ...common,
+    message: {
+      key: {
+        remoteJid: '120363400000000001@g.us',
+        participant: '123456789:7@lid',
+        fromMe: false,
+      },
+      message: { conversation: '#ping' },
+    },
+  });
+  assert.match(sent[sent.length - 1].content.text, /Pong!/);
+
+  await dispatchMessage({
+    ...common,
+    message: {
+      key: {
+        remoteJid: '120363400000000002@g.us',
+        participant: '222222222:4@lid',
+        participantAlt: `${registeredNumber}@s.whatsapp.net`,
+        fromMe: false,
+      },
+      message: { conversation: '#ping' },
+    },
+  });
+  assert.ok(data.users[registeredNumber].lids.includes('222222222@lid'));
+  await dispatchMessage({
+    ...common,
+    message: {
+      key: {
+        remoteJid: '120363400000000003@g.us',
+        participant: '222222222:5@lid',
+        fromMe: false,
+      },
+      message: { conversation: '#ping' },
+    },
+  });
+  assert.match(sent[sent.length - 1].content.text, /Pong!/);
+
+  data.users[config.botNumber] = {
+    privacyAccepted: true,
+    privacyVersion: PRIVACY_VERSION,
+    phoneNumber: config.botNumber,
+    lid: '987654321@lid',
+    displayName: 'Violette Bot',
+    registeredAt: '2026-01-01T00:00:00.000Z',
+  };
+  await dispatchMessage({
+    ...common,
+    message: {
+      key: { remoteJid: registrationGroup, fromMe: true },
+      message: { conversation: '#ping' },
+    },
+  });
+  assert.match(sent[sent.length - 1].content.text, /Pong!/);
+  await dispatchMessage({
+    ...common,
+    message: {
+      key: { remoteJid: registrationGroup, fromMe: true },
+      message: { conversation: '#groupignore status' },
+    },
+  });
+  assert.match(sent[sent.length - 1].content.text, /Bot ist aktiv/);
+  const botPrivateMessages = sent.length;
+  assert.strictEqual(await dispatchMessage({
+    ...common,
+    message: {
+      key: { remoteJid: `${config.botNumber}@s.whatsapp.net`, fromMe: true },
+      message: { conversation: '#ping' },
+    },
+  }), false);
+  assert.strictEqual(sent.length, botPrivateMessages);
+
+  const ownerGoCommand = (command) => dispatchMessage({
+    ...common,
+    message: {
+      key: { remoteJid: '491701234567@s.whatsapp.net', fromMe: false },
+      message: {
+        extendedTextMessage: {
+          text: `#${command}`,
+          contextInfo: { mentionedJid: ['123456789@lid'] },
+        },
+      },
+    },
+  });
+  await ownerGoCommand('addgo');
+  assert.deepStrictEqual(data.groupVictims, [registeredNumber]);
+  await sendGroupCommand('#me');
+  assert.match(sent[sent.length - 1].content.text, /Rang: GO/);
+  await sendGroupCommand('#warnings');
+  assert.match(sent[sent.length - 1].content.text, /Nutzung: #warnings/);
+
+  const savedMods = data.mods;
+  data.mods = ['123456789'];
+  await dispatchMessage({
+    ...common,
+    message: {
+      key: { remoteJid: '491701234567@s.whatsapp.net', fromMe: false },
+      message: { conversation: '#teamlist' },
+    },
+  });
+  assert.match(sent[sent.length - 1].content.text, /Test User \(491700000002\)/);
+  assert.doesNotMatch(sent[sent.length - 1].content.text, /123456789/);
+  assert.match(sent[sent.length - 1].content.text, /GruppenOpfer \(GO\): Test User \(491700000002\)/);
+  data.mods = savedMods;
+
+  await ownerGoCommand('delgo');
+  assert.deepStrictEqual(data.groupVictims, []);
+  const beforeDeniedModCommand = sent.length;
+  await sendGroupCommand('#warnings');
+  assert.strictEqual(sent.length, beforeDeniedModCommand);
+
+  const originalGroupMetadata = sock.groupMetadata;
+  sock.groupMetadata = async () => ({
+    participants: [
+      { id: '491701234568:1@s.whatsapp.net', admin: 'admin' },
+      { id: '123456789@lid', phoneNumber: `${registeredNumber}@s.whatsapp.net` },
+    ],
+  });
+  await dispatchMessage({
+    ...common,
+    message: {
+      key: {
+        remoteJid: registrationGroup,
+        participant: '491701234567@s.whatsapp.net',
+        fromMe: false,
+      },
+      message: { conversation: '#tagall Willkommen' },
+    },
+  });
+  const tagallMessage = sent[sent.length - 1].content;
+  assert.match(tagallMessage.text, /@491700000002/);
+  assert.ok(tagallMessage.mentions.includes(`${registeredNumber}@s.whatsapp.net`));
+  sock.groupMetadata = originalGroupMetadata;
+
+  await dispatchMessage({
+    ...common,
+    message: {
+      key: { remoteJid: '491701234567@s.whatsapp.net', fromMe: false },
+      message: { conversation: '#setdesign ping Custom\nlayout' },
+    },
+  });
+  assert.strictEqual(data.settings.commandDesigns.ping, 'Custom\nlayout');
+  await sendGroupCommand('#ping');
+  assert.strictEqual(sent[sent.length - 1].content.text, 'Custom\nlayout');
+  await dispatchMessage({
+    ...common,
+    message: {
+      key: { remoteJid: '491701234567@s.whatsapp.net', fromMe: false },
+      message: { conversation: '#resetdesign ping' },
+    },
+  });
+  assert.strictEqual(data.settings.commandDesigns.ping, undefined);
+  await sendGroupCommand('#ping');
+  assert.match(sent[sent.length - 1].content.text, /Pong!/);
+
+  const bitcoinBeforeReward = data.users[registeredNumber].bitcoin;
+  await dispatchMessage({
+    ...common,
+    message: {
+      key: { remoteJid: '491701234567@s.whatsapp.net', fromMe: false },
+      message: { conversation: '#setdesign daily Custom reward message' },
+    },
+  });
+  await sendGroupCommand('#daily');
+  assert.strictEqual(sent[sent.length - 1].content.text, 'Custom reward message');
+  assert.ok(data.users[registeredNumber].bitcoin > bitcoinBeforeReward);
+  await dispatchMessage({
+    ...common,
+    message: {
+      key: { remoteJid: '491701234567@s.whatsapp.net', fromMe: false },
+      message: { conversation: '#resetdesign daily' },
+    },
+  });
+
+  const designBeforeUnauthorizedChange = data.settings.commandDesigns.ping;
+  await sendGroupCommand('#setdesign ping Not allowed');
+  assert.strictEqual(data.settings.commandDesigns.ping, designBeforeUnauthorizedChange);
+  assert.match(sent[sent.length - 1].content.text, /Nur der Owner/);
 
   data.ignoredBots.push('491700000001');
   assert.strictEqual(await dispatchMessage({
@@ -227,10 +517,13 @@ async function run() {
   const homeMenu = sent[sent.length - 1].content;
   assert.ok(Buffer.isBuffer(homeMenu.image));
   assert.match(homeMenu.caption, /#menu1/);
-  const menuSelector = relayed[interactiveBeforeMenu].content.listMessage;
-  assert.strictEqual(menuSelector.buttonText, 'Menü öffnen');
-  assert.strictEqual(menuSelector.sections[0].rows[0].rowId, '#menu1');
+  const menuSelector = relayed[interactiveBeforeMenu].content.interactiveMessage.nativeFlowMessage;
+  assert.strictEqual(menuSelector.buttons[0].name, 'single_select');
+  const menuParams = JSON.parse(menuSelector.buttons[0].buttonParamsJson);
+  assert.ok(menuParams.sections.some(section => section.rows.some(row => row.id === '#menu1')));
 
+  const sentBeforeCategoryMenu = sent.length;
+  const relayedBeforeCategoryMenu = relayed.length;
   await dispatchMessage({
     ...common,
     message: {
@@ -238,12 +531,19 @@ async function run() {
       message: buttonMessage,
     },
   });
-  const categoryText = sent[sent.length - 1].content.text;
-  assert.match(sent[sent.length - 2].content.caption, /Account/);
-  assert.match(categoryText, /ACCOUNT GARDEN/);
-  const categoryButton = relayed[interactiveBeforeMenu + 1].content.buttonsMessage.buttons[0];
-  assert.strictEqual(categoryButton.buttonText.displayText, 'Zurück zum Menü');
-  assert.strictEqual(categoryButton.buttonId, '#menu');
+  assert.strictEqual(sent.length, sentBeforeCategoryMenu + 1);
+  assert.match(sent[sentBeforeCategoryMenu].content.text, /ACCOUNT GARDEN/);
+  assert.strictEqual(relayed.length, relayedBeforeCategoryMenu);
+
+  await dispatchMessage({
+    ...common,
+    message: {
+      key: { remoteJid: '491701234567@s.whatsapp.net', fromMe: false },
+      message: { conversation: '#menu7' },
+    },
+  });
+  assert.match(sent[sent.length - 1].content.text, /setdesign <Befehl> <Text>/);
+  assert.match(sent[sent.length - 1].content.text, /resetdesign <Befehl>/);
 
   await dispatchMessage({
     ...common,

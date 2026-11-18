@@ -1,8 +1,8 @@
 # Project Violette
 
-WhatsApp bot built with Baileys. The bot account is separate from the owner account:
-`OWNER_NUMBER` keeps owner permissions, while `BOT_NUMBER` is the account paired
-and used to run the bot.
+WhatsApp bot built with Baileys. The bot runs through its separate `BOT_NUMBER`
+account. Both `OWNER_NUMBER` and `BOT_NUMBER` have owner permissions; additional
+owner numbers can be configured with `OWNER_NUMBERS`.
 
 ## Setup
 

@@ -6,6 +6,7 @@ const {
   generateWAMessageFromContent,
   proto,
 } = require('@whiskeysockets/baileys');
+const { PRIVACY_VERSION } = require('../data-store');
 
 const MENU_IMAGE_PATH = path.join(__dirname, '../../assets/bot-banner.png');
 const BITCOIN_PER_HOUR = 18;
@@ -81,6 +82,38 @@ function displayUser(context, number) {
   return name || normalized;
 }
 
+async function resolvePhoneNumber(context, jid) {
+  const normalized = context.normalizeJid(jid);
+  const accounts = Object.values(context.data.users || {});
+  const account = accounts.find((entry) => (
+    entry?.phoneNumber
+    && (
+      context.normalizeJid(entry.phoneNumber) === normalized
+      || context.normalizeJid(entry.lid) === normalized
+      || (Array.isArray(entry.lids) && entry.lids.some((lid) => context.normalizeJid(lid) === normalized))
+    )
+  ));
+  if (account?.phoneNumber) return context.normalizeJid(account.phoneNumber);
+
+  const lidMapping = context.sock.signalRepository?.lidMapping;
+  if (normalized && lidMapping?.getPNForLID) {
+    const candidates = [String(jid || '')];
+    if (!candidates[0].endsWith('@lid') && !candidates[0].endsWith('@hosted.lid')) {
+      candidates.push(`${normalized}@lid`);
+    }
+    for (const candidate of candidates) {
+      if (!candidate.endsWith('@lid') && !candidate.endsWith('@hosted.lid')) continue;
+      try {
+        const phoneNumber = await lidMapping.getPNForLID(candidate);
+        if (phoneNumber) return context.normalizeJid(phoneNumber);
+      } catch (error) {
+        console.error(`LID-Zuordnung für ${candidate} konnte nicht geladen werden:`, error.message);
+      }
+    }
+  }
+  return normalized;
+}
+
 function mentionJid(context, number) {
   const normalized = context.normalizeJid(number);
   const mentioned = context.message.message?.extendedTextMessage?.contextInfo?.mentionedJid || [];
@@ -94,8 +127,16 @@ function mentionJid(context, number) {
 function requireRole(context, role) {
   const number = context.normalizeJid(context.sender);
   if (context.ownerNumbers?.includes(number) || number === context.ownerNumber) return true;
-  if (role === 'mod' && context.data.mods.includes(number)) return true;
-  if (role === 'support' && (context.data.mods.includes(number) || context.data.support.includes(number))) return true;
+  const senderIds = new Set([
+    number,
+    context.normalizeJid(context.senderLid),
+  ].filter(Boolean));
+  const hasRole = (members) => (members || []).some((member) => (
+    senderIds.has(context.normalizeJid(member))
+  ));
+  const isModerator = hasRole(context.data.mods) || hasRole(context.data.groupVictims);
+  if (role === 'mod' && isModerator) return true;
+  if (role === 'support' && (isModerator || hasRole(context.data.support))) return true;
   return false;
 }
 
@@ -276,6 +317,8 @@ const MENU_CATEGORIES = {
     commands: [
       ['addmod @Nutzer', 'Moderator ernennen (nur Owner)'],
       ['delmod @Nutzer', 'Moderator entfernen (nur Owner)'],
+      ['addgo @Nutzer', 'GruppenOpfer (GO) mit Mod-Rechten ernennen (nur Owner)'],
+      ['delgo @Nutzer', 'GruppenOpfer (GO) entfernen (nur Owner)'],
       ['addsupport @Nutzer', 'Support ernennen (nur Owner)'],
       ['delsupport @Nutzer', 'Support entfernen (nur Owner)'],
       ['prefix set <Zeichen>', 'Präfix ändern (nur Owner)'],
@@ -301,6 +344,8 @@ const MENU_CATEGORIES = {
       ['mt add|list|remove <command>', 'Befehle in Wartung setzen und verwalten (nur Owner)'],
       ['suggestion <ID> yes|no', 'Befehlsvorschlag annehmen oder ablehnen (nur Owner)'],
       ['alias add|remove|list', 'Eigene Kurzbefehle verwalten (nur Owner)'],
+      ['setdesign <Befehl> <Text>', 'Standardantwort eines Befehls ersetzen (nur Owner)'],
+      ['resetdesign <Befehl>', 'Eigenes Antwortdesign zurücksetzen (nur Owner)'],
     ],
   },
   8: {
@@ -395,88 +440,183 @@ async function sendMenu(context, category) {
     renderMenu(category, prefix, context),
     category ? `menu${category}` : 'menu',
   );
+  if (category) {
+    await context.sock.sendMessage(context.jid, { text });
+    return;
+  }
   try {
-    const caption = category
-      ? `🌸 Project Violette · ${MENU_CATEGORIES[category]?.title || 'Menü'}`
-      : text;
     await context.sock.sendMessage(context.jid, {
       image: fs.readFileSync(MENU_IMAGE_PATH),
-      caption,
+      caption: text,
     });
   } catch (error) {
     console.error('Menübild konnte nicht gesendet werden; sende die Textübersicht:', error);
     await context.sock.sendMessage(context.jid, { text });
   }
-  if (category) await context.sock.sendMessage(context.jid, { text });
-  await sendInteractiveMenu(context, category);
+  await sendInteractiveMenu(context, null);
 }
 
 async function sendInteractiveMenu(context, category) {
   const prefix = commandPrefix(context);
+
   const visibleCategories = Object.entries(MENU_CATEGORIES)
     .filter(([number]) => (number !== '7' || isCurrentOwner(context))
       && (number !== '8' || isSpicyMenuVisible(context)));
 
-  let message;
+  let bodyText;
+  let headerTitle;
+  let footerText;
+  let buttons;
+
   if (category) {
     const menu = MENU_CATEGORIES[category];
+
     if (!menu
       || (category === '7' && !isCurrentOwner(context))
-      || (category === '8' && !isSpicyMenuVisible(context))) return;
+      || (category === '8' && !isSpicyMenuVisible(context))) {
+      return;
+    }
 
-    message = proto.Message.fromObject({
-      buttonsMessage: {
-        contentText: '💜 ' + menu.title + '\nModul geöffnet · ' + menu.commands.length + ' Befehle\n\nDie vollständige Befehlsübersicht steht direkt über dieser Nachricht.',
-        footerText: 'PROJECT VIOLETTÉ · DESIGN BY 7',
-        headerType: proto.Message.ButtonsMessage.HeaderType.EMPTY,
-        buttons: [
-          {
-            buttonId: prefix + 'menu',
-            buttonText: { displayText: '◀ Zurück zum Nexus' },
-            type: proto.Message.ButtonsMessage.Button.Type.RESPONSE,
-          },
-          {
-            buttonId: prefix + 'commands',
-            buttonText: { displayText: '✦ Alle Befehle' },
-            type: proto.Message.ButtonsMessage.Button.Type.RESPONSE,
-          },
-        ],
+    bodyText = menu.title
+      + '\nModul geoeffnet: ' + menu.commands.length
+      + ' Befehle\n\nDie vollstaendige Befehlsuebersicht steht direkt ueber dieser Nachricht.';
+
+    headerTitle = menu.title;
+    footerText = 'PROJECT VIOLETTE - DESIGN BY 7';
+
+    buttons = [
+      {
+        name: 'quick_reply',
+        buttonParamsJson: JSON.stringify({
+          display_text: 'Zurueck zum Nexus',
+          id: prefix + 'menu',
+        }),
       },
-    });
+      {
+        name: 'quick_reply',
+        buttonParamsJson: JSON.stringify({
+          display_text: 'Alle Befehle',
+          id: prefix + 'commands',
+        }),
+      },
+    ];
   } else {
-    message = proto.Message.fromObject({
-      listMessage: {
-        title: '💜 PROJECT VIOLETTÉ',
-        description: 'NEXUS V7 · Wähle ein Modul aus.',
-        buttonText: 'CONTROL CENTER ÖFFNEN',
-        footerText: 'DESIGN BY 7 · SYSTEM ONLINE',
-        listType: proto.Message.ListMessage.ListType.SINGLE_SELECT,
-        sections: [{
-          title: '✦ VERFÜGBARE MODULE',
-          rows: visibleCategories.map(([number, menu]) => ({
-            rowId: prefix + 'menu' + number,
-            title: menu.title,
-            description: menu.commands.length + ' Befehle · Modul ' + String(number).padStart(2, '0'),
-          })),
-        }],
+    bodyText = 'NEXUS V7 - Waehle ein Modul aus.';
+    headerTitle = 'PROJECT VIOLETTE';
+    footerText = 'DESIGN BY 7 - SYSTEM ONLINE';
+
+    buttons = [
+      {
+        name: 'single_select',
+        buttonParamsJson: JSON.stringify({
+          title: 'CONTROL CENTER OEFFNEN',
+          sections: [
+            {
+              title: 'VERFUEGBARE MODULE',
+              rows: visibleCategories.map(([number, menu]) => ({
+                id: prefix + 'menu' + number,
+                title: menu.title,
+                description: menu.commands.length
+                  + ' Befehle - Modul '
+                  + String(number).padStart(2, '0'),
+              })),
+            },
+          ],
+        }),
       },
-    });
+    ];
   }
 
   try {
     const userJid = context.sock.user?.id || context.sock.user?.jid;
-    if (!userJid) throw new Error('WhatsApp-Bot-JID ist noch nicht verfügbar.');
-    const generated = generateWAMessageFromContent(context.jid, message, { userJid });
-    await context.sock.relayMessage(context.jid, generated.message, {
-      messageId: generated.key.id,
+
+    if (!userJid) {
+      throw new Error('WhatsApp-Bot-JID ist noch nicht verfuegbar.');
+    }
+
+    const interactiveMessage = proto.Message.InteractiveMessage.create({
+      header: proto.Message.InteractiveMessage.Header.create({
+        title: headerTitle,
+        subtitle: 'NEXUS V7',
+        hasMediaAttachment: false,
+      }),
+      body: proto.Message.InteractiveMessage.Body.create({
+        text: bodyText,
+      }),
+      footer: proto.Message.InteractiveMessage.Footer.create({
+        text: footerText,
+      }),
+      nativeFlowMessage:
+        proto.Message.InteractiveMessage.NativeFlowMessage.create({
+          buttons: buttons.map((button) =>
+            proto.Message.InteractiveMessage.NativeFlowMessage.NativeFlowButton.create({
+              name: button.name,
+              buttonParamsJson: button.buttonParamsJson,
+            }),
+          ),
+          messageParamsJson: '{}',
+          messageVersion: 1,
+        }),
     });
+
+    const generated = generateWAMessageFromContent(
+      context.jid,
+      { interactiveMessage },
+      { userJid },
+    );
+
+    const privacyModeTs = (
+      Math.floor(Date.now() / 1000) - 77980457
+    ).toString();
+
+    const bizNode = {
+      tag: 'biz',
+      attrs: {
+        actual_actors: '2',
+        host_storage: '2',
+        privacy_mode_ts: privacyModeTs,
+      },
+      content: [
+        {
+          tag: 'interactive',
+          attrs: { type: 'native_flow', v: '1' },
+          content: [
+            {
+              tag: 'native_flow',
+              attrs: { v: '9', name: 'mixed' },
+            },
+          ],
+        },
+        {
+          tag: 'quality_control',
+          attrs: { source_type: 'third_party' },
+        },
+      ],
+    };
+
+    const additionalNodes = context.jid.endsWith('@g.us')
+      ? [bizNode]
+      : [
+          { tag: 'bot', attrs: { biz_bot: '1' } },
+          bizNode,
+        ];
+
+    await context.sock.relayMessage(
+      context.jid,
+      generated.message,
+      {
+        messageId: generated.key.id,
+        additionalNodes,
+      },
+    );
   } catch (error) {
-    // Das Textmenü bleibt der zuverlässige Fallback, falls WhatsApp den
-    // jeweiligen interaktiven Nachrichtentyp auf diesem Client ablehnt.
-    console.error('Interaktives Violetté-Menü nicht verfügbar; Textmenü bleibt aktiv:', error);
+    console.error('Native-Flow-Menue konnte nicht gesendet werden:', error);
+
+    await context.sock.sendMessage(context.jid, {
+      text: 'Das interaktive Menue konnte nicht geladen werden. Bitte verwende die Textuebersicht.',
+    });
   }
 }
-
 const COMMAND_STYLES = [
   ['╭─🌸', '╰─🌸', 'VIOLETTE BLOOM'],
   ['╭─✦', '╰─✦', 'NEON SPARK'],
@@ -1156,6 +1296,7 @@ const commandRuntime = {
     WEEKLY_REWARD,
     WORK_REWARD,
     MAX_BET,
+    PRIVACY_VERSION,
     commands,
     groupOperationQueues,
     FUN_GIFS,
@@ -1165,6 +1306,7 @@ const commandRuntime = {
     user,
     displayName,
     displayUser,
+    resolvePhoneNumber,
     mentionJid,
     requireRole,
     isOwner,
@@ -1230,6 +1372,7 @@ const commandRuntime = {
 module.exports = {
   commands,
   createCommandContext,
+  PRIVACY_VERSION,
   getCommandHelp,
   renderMenu,
   sendMenu,

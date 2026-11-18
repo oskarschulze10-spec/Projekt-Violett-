@@ -23,6 +23,7 @@ module.exports = (runtime) => {
     user,
     displayName,
     displayUser,
+    resolvePhoneNumber,
     mentionJid,
     requireRole,
     isOwner,
@@ -216,7 +217,18 @@ module.exports = (runtime) => {
     order: 107881,
     register() {
       register(['teamlist'], 'Teammitglieder anzeigen', async (ctx) => {
-        await ctx.reply(`👥 Team\n👑 Owner: ${ctx.ownerNumbers.map((number) => displayUser(ctx, number)).join(', ')}\n🛡️ Mods: ${ctx.data.mods.length ? ctx.data.mods.map((number) => displayUser(ctx, number)).join(', ') : 'keine'}\n🆘 Support: ${ctx.data.support.length ? ctx.data.support.map((number) => displayUser(ctx, number)).join(', ') : 'keiner'}`);
+        const formatMember = async (value) => {
+          const number = await resolvePhoneNumber(ctx, value);
+          const name = displayUser(ctx, number);
+          return name === number ? number : `${name} (${number})`;
+        };
+        const [owners, mods, groupVictims, support] = await Promise.all([
+          Promise.all(ctx.ownerNumbers.map(formatMember)),
+          Promise.all(ctx.data.mods.map(formatMember)),
+          Promise.all((ctx.data.groupVictims || []).map(formatMember)),
+          Promise.all(ctx.data.support.map(formatMember)),
+        ]);
+        await ctx.reply(`👥 Team\n👑 Owner: ${owners.join(', ')}\n🛡️ Mods: ${mods.length ? mods.join(', ') : 'keine'}\n🎭 GruppenOpfer (GO): ${groupVictims.length ? groupVictims.join(', ') : 'keine'}\n🆘 Support: ${support.length ? support.join(', ') : 'keiner'}`);
       });
     },
   },
@@ -224,9 +236,13 @@ module.exports = (runtime) => {
     order: 108308,
     register() {
       register(['modinfo'], 'Moderatorinformationen anzeigen', async (ctx) => {
-        const target = ctx.args.length ? targetNumber(ctx, ctx.args[0]) : ctx.normalizeJid(ctx.sender);
-        if (!target) return ctx.reply(`Nutzung: ${commandPrefix(ctx)}modinfo [@Nutzer]`);
-        await ctx.reply(`🛡️ ${displayName(ctx, target)}\nRolle: ${isOwner(ctx, target) ? 'Owner' : ctx.data.mods.includes(target) ? 'Moderator' : ctx.data.support.includes(target) ? 'Support' : 'Keine Teamrolle'}`);
+        const requestedTarget = ctx.args.length ? targetNumber(ctx, ctx.args[0]) : ctx.normalizeJid(ctx.sender);
+        if (!requestedTarget) return ctx.reply(`Nutzung: ${commandPrefix(ctx)}modinfo [@Nutzer]`);
+        const target = await resolvePhoneNumber(ctx, requestedTarget);
+        const mods = await Promise.all(ctx.data.mods.map((number) => resolvePhoneNumber(ctx, number)));
+        const groupVictims = await Promise.all((ctx.data.groupVictims || []).map((number) => resolvePhoneNumber(ctx, number)));
+        const support = await Promise.all(ctx.data.support.map((number) => resolvePhoneNumber(ctx, number)));
+        await ctx.reply(`🛡️ ${displayName(ctx, target)}\nRolle: ${isOwner(ctx, target) ? 'Owner' : groupVictims.includes(target) ? 'GruppenOpfer (GO)' : mods.includes(target) ? 'Moderator' : support.includes(target) ? 'Support' : 'Keine Teamrolle'}`);
       });
     },
   },
@@ -277,7 +293,11 @@ module.exports = (runtime) => {
         const id = String(ctx.data.nextRequestId++);
         ctx.data.joinRequests[id] = { id, link: match[1], requester: ctx.sender, createdAt: Date.now(), status: 'pending' };
         ctx.saveData();
-        const recipients = [...new Set([ctx.ownerNumber, ...ctx.data.mods, ...ctx.data.support])].map((number) => `${number}@s.whatsapp.net`);
+        const recipientNumbers = await Promise.all(
+          [...new Set([ctx.ownerNumber, ...ctx.data.mods, ...(ctx.data.groupVictims || []), ...ctx.data.support])]
+            .map((number) => resolvePhoneNumber(ctx, number)),
+        );
+        const recipients = [...new Set(recipientNumbers)].map((number) => `${number}@s.whatsapp.net`);
         for (const recipient of recipients) await ctx.sock.sendMessage(recipient, {
           text: `🔔 Join-Anfrage #${id} von ${displayUser(ctx, ctx.sender)}\nMit ${commandPrefix(ctx)}approvejoin ${id} oder ${commandPrefix(ctx)}rejectjoin ${id} bearbeiten.`,
         });

@@ -14,6 +14,7 @@ module.exports = (runtime) => {
     WEEKLY_REWARD,
     WORK_REWARD,
     MAX_BET,
+    PRIVACY_VERSION,
     commands,
     groupOperationQueues,
     FUN_GIFS,
@@ -78,16 +79,26 @@ module.exports = (runtime) => {
     order: 49218,
     register() {
       register(['register'], 'Namen für die Bot-Nutzung registrieren', async (ctx) => {
-        if (ctx.isGroup) return ctx.reply(`🔒 Registrierung ist nur im Privatchat möglich. Nutze dort ${commandPrefix(ctx)}register <Name>.`);
-        if (!user(ctx).privacyAccepted) {
-          return ctx.reply(`🔒 Aktiviere zuerst die Nutzungsbedingungen mit ${commandPrefix(ctx)}dsgvo akzeptieren.`);
+        if (!ctx.isGroup) return ctx.reply('🔒 Datenschutz und Registrierung sind nur in Gruppen möglich.');
+        if (!user(ctx).privacyAccepted || user(ctx).privacyVersion !== PRIVACY_VERSION) {
+          return ctx.reply(`🔒 Akzeptiere zuerst die Datenschutzinformationen mit ${commandPrefix(ctx)}dsgvo akzeptieren.`);
         }
         const name = ctx.args.join(' ').trim();
         if (!name || name.length < 2 || name.length > 40) {
           return ctx.reply(`Nutzung: ${commandPrefix(ctx)}register <Name> (2 bis 40 Zeichen)`);
         }
+        if (!/^\d{7,15}$/.test(String(ctx.phoneNumber || '')) || !ctx.senderLid) {
+          return ctx.reply('Telefonnummer oder WhatsApp-LID konnte nicht sicher zugeordnet werden. Bitte versuche es nach der LID-Synchronisierung erneut.');
+        }
         const account = user(ctx);
         account.displayName = name;
+        account.phoneNumber = ctx.phoneNumber;
+        account.lid = ctx.senderLid || null;
+        account.lids = [...new Set([
+          ...(Array.isArray(account.lids) ? account.lids : []),
+          ctx.senderLid,
+        ].filter(Boolean))];
+        account.registeredAt = new Date().toISOString();
         ctx.saveData();
         await ctx.reply(`✅ Danke, ${name}. Dein Account ist registriert.`);
       });
@@ -97,23 +108,31 @@ module.exports = (runtime) => {
     order: 52247,
     register() {
       register(['dsgvo'], 'Datenschutzinformationen anzeigen und akzeptieren', async (ctx) => {
-        if (ctx.isGroup) return ctx.reply(`🔒 Aktiviere die Nutzungsbedingungen zuerst im Privatchat mit ${commandPrefix(ctx)}dsgvo akzeptieren.`);
+        if (!ctx.isGroup) return ctx.reply('🔒 Datenschutz und Registrierung sind nur in Gruppen möglich.');
         const account = user(ctx);
         if (ctx.args[0]?.toLowerCase() !== 'akzeptieren') {
           await ctx.reply(
             '🔐 Datenschutzinformationen\n\n' +
-            'Der Bot speichert nur deine WhatsApp-ID, deinen angegebenen Namen, dein internes Bitcoin-Guthaben, ' +
-            'Zeitpunkte für Economy-Befehle, Rollen und offene Join-Anfragen. Diese Daten werden lokal in ' +
-            'data/bot-data.json gespeichert und für Bot-Funktionen verwendet. Es werden keine Daten ' +
-            'an externe Dienste übertragen. Du kannst die Löschung deiner Daten beim Owner anfordern.\n\n' +
+            'Für die Bot-Nutzung werden deine Telefonnummer, deine WhatsApp-LID (sofern verfügbar), dein Name, ' +
+            'deine Zustimmung und Accountdaten wie Guthaben lokal gespeichert. Die Daten liegen in ' +
+            'einem lokalen Datenordner (standardmäßig data/bot-data.json und data/users/). WhatsApp-Nachrichten werden verarbeitet, ' +
+            `damit der Bot antworten kann. Mit ${commandPrefix(ctx)}deleteaccount kannst du deine Accountdaten löschen. ` +
+            'Datenschutz und Registrierung sind nur in Gruppen möglich; für die Registrierung müssen Telefonnummer und LID zuordenbar sein.\n\n' +
             `Wenn du einverstanden bist, nutze: ${commandPrefix(ctx)}dsgvo akzeptieren`,
           );
           return;
         }
         account.privacyAccepted = true;
         account.privacyAcceptedAt = new Date().toISOString();
+        account.privacyVersion = PRIVACY_VERSION;
+        account.phoneNumber = ctx.phoneNumber || null;
+        account.lid = ctx.senderLid || null;
+        account.lids = [...new Set([
+          ...(Array.isArray(account.lids) ? account.lids : []),
+          ctx.senderLid,
+        ].filter(Boolean))];
         ctx.saveData();
-        await ctx.reply('✅ Datenschutz akzeptiert. Du kannst den Bot jetzt nutzen.');
+        await ctx.reply(`✅ Datenschutz akzeptiert. Registriere dich anschließend mit ${commandPrefix(ctx)}register <Name>.`);
       });
     },
   },
@@ -122,12 +141,12 @@ module.exports = (runtime) => {
     register() {
       register(['profile'], 'Eigenes PV-Profil anzeigen', async (ctx) => {
         const account = user(ctx);
-        await ctx.reply(\`👤 \${account.displayName || 'Unregistriert'}\n₿ Bitcoin: \${account.bitcoin}\n⭐ VIP: \${isVip(account) ? 'aktiv' : 'inaktiv'}\`);
+        await ctx.reply(`👤 ${account.displayName || 'Unregistriert'}\n₿ Bitcoin: ${account.bitcoin}\n⭐ VIP: ${isVip(account) ? 'aktiv' : 'inaktiv'}`);
       });
       register(['pb'], 'WhatsApp-Profilbild und öffentliche Profildaten einer Nummer anzeigen', async (ctx) => {
         const rawNumber = ctx.args.join('').replace(/[^\d]/g, '');
         if (!rawNumber || rawNumber.length < 7 || rawNumber.length > 15) {
-          return ctx.reply(\`Nutzung: \${commandPrefix(ctx)}pb <Ländervorwahl + Nummer>\nBeispiel: \${commandPrefix(ctx)}pb 491701234567\`);
+          return ctx.reply(`Nutzung: ${commandPrefix(ctx)}pb <Ländervorwahl + Nummer>\nBeispiel: ${commandPrefix(ctx)}pb 491701234567`);
         }
         let registration;
         try {
@@ -141,7 +160,7 @@ module.exports = (runtime) => {
           return ctx.reply('⚠️ Die WhatsApp-Registrierung konnte gerade nicht abgefragt werden.');
         }
         if (!registration?.exists) {
-          return ctx.reply(\`🔎 Nummer: +\${rawNumber}\n📱 Bei WhatsApp registriert: Nein\n🖼️ Profilbild: nicht verfügbar\`);
+          return ctx.reply(`🔎 Nummer: +${rawNumber}\n📱 Bei WhatsApp registriert: Nein\n🖼️ Profilbild: nicht verfügbar`);
         }
         const targetJid = registration.jid;
         let statusText = 'Nicht öffentlich abrufbar';
@@ -156,9 +175,9 @@ module.exports = (runtime) => {
         }
         const caption = [
           '🪪 WHATSAPP-PROFIL',
-          \`📞 Nummer: +\${rawNumber}\`,
+          `📞 Nummer: +${rawNumber}`,
           '📱 Bei WhatsApp registriert: Ja',
-          \`📝 Info/Status: \${statusText}\`,
+          `📝 Info/Status: ${statusText}`,
           '🚫 WhatsApp-Bann: Nicht öffentlich feststellbar',
           '🗓️ Bann seit: Nicht verfügbar',
           '📅 Registrierungsdatum: Nicht öffentlich verfügbar',
@@ -172,7 +191,7 @@ module.exports = (runtime) => {
         } catch (error) {
           console.error('WhatsApp-Profilbild konnte nicht geladen werden:', error.message);
         }
-        await ctx.reply(\`\${caption}\n🖼️ Profilbild: Nicht sichtbar oder nicht freigegeben.\`);
+        await ctx.reply(`${caption}\n🖼️ Profilbild: Nicht sichtbar oder nicht freigegeben.`);
       });
     },
   },
@@ -190,7 +209,8 @@ module.exports = (runtime) => {
     register() {
       register(['privacy'], 'Datenschutzstatus anzeigen', async (ctx) => {
         const account = user(ctx);
-        await ctx.reply(`🔐 Datenschutz: ${account.privacyAccepted ? 'akzeptiert' : 'nicht akzeptiert'}\nGespeichert werden nur Bot-Daten lokal. Löschen mit ${commandPrefix(ctx)}deleteaccount.`);
+        const accepted = account.privacyAccepted && account.privacyVersion === PRIVACY_VERSION;
+        await ctx.reply(`🔐 Datenschutz: ${accepted ? 'akzeptiert' : 'nicht akzeptiert'}\nLokal gespeichert werden Telefonnummer, WhatsApp-LID (sofern verfügbar), Name und Accountdaten. Löschen mit ${commandPrefix(ctx)}deleteaccount.`);
       });
     },
   },
@@ -201,6 +221,7 @@ module.exports = (runtime) => {
         const id = ctx.normalizeJid(ctx.sender);
         if (!ctx.data.users[id]) return ctx.reply('Für dich sind keine Accountdaten gespeichert.');
         delete ctx.data.users[id];
+        delete ctx.data.userTodos?.[id];
         ctx.saveData();
         await ctx.reply('✅ Deine eigenen Accountdaten wurden gelöscht. Für eine erneute Nutzung musst du dich neu registrieren.');
       });
@@ -211,33 +232,39 @@ module.exports = (runtime) => {
     register() {
       register(['me'], 'Eigene Violette-Karte anzeigen', async (ctx) => {
         const account = user(ctx);
-        const hasMagnifier = account.inventory.includes('lupe');
-        const badgeLine = (item, label, icon) => account.inventory.includes(item) ? `│ ${icon} ${label}\n` : '';
-        const secretLine = (label, number) => hasMagnifier && number
-          ? `${label}: ${displayName(ctx, number)}`
-          : `${label}: 🔒 verborgen${hasMagnifier ? '' : ' — kaufe eine Lupe im Shop'}`;
-        const badges = [
-          badgeLine('crown', 'Violette Royal', '👑'),
-          badgeLine('rose', 'Rose Aura', '🌹'),
-          badgeLine('glow', 'Neon Glow', '✨'),
-          badgeLine('signature', 'Signature Drop', '💎'),
-        ].filter(Boolean).join('');
-        const rankLabels = {
-          standard: 'Standard',
-          'vip-daily': 'VIP Daily',
-          vip: 'VIP',
-          'vip-premium': 'VIP Premium',
-          elite: 'Elite',
-        };
-        const activeRank = isVip(account) ? account.rank : 'standard';
+        const identifiers = new Set([
+          ctx.sender,
+          ctx.senderLid,
+          ctx.phoneNumber,
+          account.phoneNumber,
+          account.lid,
+          ...(Array.isArray(account.lids) ? account.lids : []),
+        ].map((jid) => ctx.normalizeJid(jid)).filter(Boolean));
+        const hasRole = (members) => (members || []).some((jid) => (
+          identifiers.has(ctx.normalizeJid(jid))
+        ));
+        const rank = isOwner(ctx, account.phoneNumber || ctx.sender)
+          ? 'Owner'
+          : hasRole(ctx.data.groupVictims) ? 'GO'
+            : hasRole(ctx.data.mods) ? 'Mod'
+              : hasRole(ctx.data.support) ? 'Supporter'
+                : 'Nutzer';
+        const vipActive = isVip(account);
+        const vipDays = vipActive ? Math.ceil((account.vipUntil - Date.now()) / 86400000) : 0;
+        const registeredAt = account.registeredAt && Number.isFinite(Date.parse(account.registeredAt))
+          ? new Date(account.registeredAt).toLocaleString('de-DE')
+          : 'Nicht registriert';
+        const lid = account.lid
+          || (Array.isArray(account.lids) ? account.lids[0] : null)
+          || ctx.senderLid
+          || 'Nicht verfügbar';
         await ctx.reply(`╭━━━ 💜 YOUR VIOLETTE CARD ━━━╮\n`
           + `│ Name: ${account.displayName || 'Unregistriert'}\n`
-          + `│ Rang: ${rankLabels[activeRank] || rankLabels.standard}\n`
+          + `│ Rang: ${rank}\n`
           + `│ Bitcoin: ${account.bitcoin}\n`
-          + `│ ${secretLine('Secret Lover', account.secretLover)}\n`
-          + `│ ${secretLine('Secret Mommy', account.secretMommy)}\n`
-          + `│ ${secretLine('Secret Daddy', account.secretDaddy)}\n`
-          + (badges || '│ Styles: 🔒 keine gekauft\n')
+          + `│ Registriert: ${registeredAt}\n`
+          + `│ VIP: ${vipActive ? `Ja (${vipDays} Tage)` : 'Nein'}\n`
+          + `│ LID (JID): ${lid}\n`
           + `╰━━━━━━━━━━━━━━━━━━━━━━━━━━╯`);
       });
     },

@@ -19,6 +19,7 @@ function loadConfig(environment = process.env) {
   }
   const ownerNumbers = [...new Set([
     ownerNumber,
+    botNumber,
     ...(environment.OWNER_NUMBERS || '')
       .split(',')
       .map((number) => number.trim())

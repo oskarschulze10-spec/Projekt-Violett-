@@ -23,6 +23,7 @@ module.exports = (runtime) => {
     user,
     displayName,
     displayUser,
+    resolvePhoneNumber,
     mentionJid,
     requireRole,
     isOwner,
@@ -575,8 +576,14 @@ module.exports = (runtime) => {
         if (!requireRole(ctx, 'owner')) return ctx.reply('Nur der Owner darf Moderatoren ernennen.');
         const target = mentionJids(ctx)[0];
         if (!target) return ctx.reply(`Erwähne die Person: ${commandPrefix(ctx)}addmod @Nutzer`);
-        const number = ctx.normalizeJid(target);
-        if (!ctx.data.mods.includes(number)) ctx.data.mods.push(number);
+        const targetId = ctx.normalizeJid(target);
+        const number = await resolvePhoneNumber(ctx, target) || targetId;
+        const identifiers = new Set([targetId, number]);
+        if (!ctx.data.mods.some((entry) => identifiers.has(ctx.normalizeJid(entry)))) {
+          ctx.data.mods.push(number);
+        }
+        ctx.data.groupVictims = (ctx.data.groupVictims || [])
+          .filter((entry) => !identifiers.has(ctx.normalizeJid(entry)));
         ctx.saveData();
         await ctx.reply('✅ Moderator hinzugefügt.');
       });
@@ -589,10 +596,52 @@ module.exports = (runtime) => {
         if (!requireRole(ctx, 'owner')) return ctx.reply('Nur der Owner darf Moderatoren entfernen.');
         const target = mentionJids(ctx)[0];
         if (!target) return ctx.reply(`Erwähne die Person: ${commandPrefix(ctx)}delmod @Nutzer`);
-        const number = ctx.normalizeJid(target);
-        ctx.data.mods = ctx.data.mods.filter((mod) => mod !== number);
+        const identifiers = new Set([
+          ctx.normalizeJid(target),
+          await resolvePhoneNumber(ctx, target),
+        ].filter(Boolean));
+        ctx.data.mods = ctx.data.mods.filter((mod) => !identifiers.has(ctx.normalizeJid(mod)));
         ctx.saveData();
         await ctx.reply('✅ Moderator entfernt.');
+      });
+    },
+  },
+  {
+    order: 98800,
+    register() {
+      register(['addgo'], 'GruppenOpfer (GO) mit Moderatorrechten ernennen (nur Owner)', async (ctx) => {
+        if (!requireRole(ctx, 'owner')) return ctx.reply('Nur der Owner darf GruppenOpfer ernennen.');
+        const target = mentionJids(ctx)[0];
+        if (!target) return ctx.reply(`Erwähne die Person: ${commandPrefix(ctx)}addgo @Nutzer`);
+        const targetId = ctx.normalizeJid(target);
+        const phoneNumber = await resolvePhoneNumber(ctx, target);
+        const identifiers = new Set([targetId, phoneNumber].filter(Boolean));
+        const number = phoneNumber || targetId;
+        ctx.data.groupVictims ||= [];
+        if (!ctx.data.groupVictims.some((entry) => identifiers.has(ctx.normalizeJid(entry)))) {
+          ctx.data.groupVictims.push(number);
+        }
+        ctx.data.mods = (ctx.data.mods || []).filter((entry) => !identifiers.has(ctx.normalizeJid(entry)));
+        ctx.saveData();
+        await ctx.reply('🎭 GruppenOpfer (GO) mit Moderatorrechten hinzugefügt.');
+      });
+    },
+  },
+  {
+    order: 98850,
+    register() {
+      register(['delgo'], 'GruppenOpfer (GO) entfernen (nur Owner)', async (ctx) => {
+        if (!requireRole(ctx, 'owner')) return ctx.reply('Nur der Owner darf GruppenOpfer entfernen.');
+        const target = mentionJids(ctx)[0];
+        if (!target) return ctx.reply(`Erwähne die Person: ${commandPrefix(ctx)}delgo @Nutzer`);
+        const identifiers = new Set([
+          ctx.normalizeJid(target),
+          await resolvePhoneNumber(ctx, target),
+        ].filter(Boolean));
+        ctx.data.groupVictims = (ctx.data.groupVictims || [])
+          .filter((entry) => !identifiers.has(ctx.normalizeJid(entry)));
+        ctx.saveData();
+        await ctx.reply('✅ GruppenOpfer (GO) entfernt.');
       });
     },
   },
@@ -733,6 +782,58 @@ module.exports = (runtime) => {
         ctx.data.aliases[name] = target;
         ctx.saveData();
         await ctx.reply(`✅ ${commandPrefix(ctx)}${name} → ${commandPrefix(ctx)}${target} wurde gespeichert.`);
+      });
+    },
+  },
+  {
+    order: 114100,
+    register() {
+      register(['setdesign'], 'Antwortdesign eines Befehls festlegen (nur Owner)', async (ctx) => {
+        if (!requireRole(ctx, 'owner')) return ctx.reply('Nur der Owner darf Befehlsdesigns ändern.');
+        const targetName = (ctx.args[0] || '').toLowerCase().replace(/^#/, '');
+        const targetCommand = commands.get(targetName);
+        const command = targetCommand?.names[0];
+        const protectedCommands = new Set([
+          'dsgvo',
+          'register',
+          'privacy',
+          'deleteaccount',
+          'setdesign',
+          'resetdesign',
+        ]);
+        const rawText = String(ctx.rawText || '').trim();
+        const design = rawText.match(/^\S+\s+\S+\s+([\s\S]+)$/)?.[1]?.trim();
+        if (!command || protectedCommands.has(command) || !design || design.length > 4096) {
+          return ctx.reply(
+            `Nutzung: ${commandPrefix(ctx)}setdesign <Befehl> <Text>\n`
+            + 'Der Text ersetzt die Standardantwort. Datenschutz- und Registrierungsbefehle sind geschützt; maximal 4096 Zeichen.',
+          );
+        }
+        ctx.data.settings.commandDesigns ||= {};
+        ctx.data.settings.commandDesigns[command] = design;
+        ctx.saveData();
+        await ctx.reply(`✅ Eigenes Antwortdesign für ${commandPrefix(ctx)}${command} gespeichert.`);
+      });
+    },
+  },
+  {
+    order: 114200,
+    register() {
+      register(['resetdesign'], 'Eigenes Befehlsdesign zurücksetzen (nur Owner)', async (ctx) => {
+        if (!requireRole(ctx, 'owner')) return ctx.reply('Nur der Owner darf Befehlsdesigns zurücksetzen.');
+        const targetName = (ctx.args[0] || '').toLowerCase().replace(/^#/, '');
+        const targetCommand = commands.get(targetName);
+        const command = targetCommand?.names[0];
+        if (!command || ['setdesign', 'resetdesign'].includes(command)) {
+          return ctx.reply(`Nutzung: ${commandPrefix(ctx)}resetdesign <Befehl>`);
+        }
+        ctx.data.settings.commandDesigns ||= {};
+        if (!ctx.data.settings.commandDesigns[command]) {
+          return ctx.reply(`Für ${commandPrefix(ctx)}${command} ist kein eigenes Design gespeichert.`);
+        }
+        delete ctx.data.settings.commandDesigns[command];
+        ctx.saveData();
+        await ctx.reply(`✅ Standardantwort für ${commandPrefix(ctx)}${command} wiederhergestellt.`);
       });
     },
   }
