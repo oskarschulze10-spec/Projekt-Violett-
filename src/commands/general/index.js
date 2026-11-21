@@ -140,9 +140,6 @@ module.exports = (runtime) => {
           if (number === '7' && !isCurrentOwner(ctx)) {
             return ctx.reply('🔒 Dieses Owner-Menü ist ausschließlich für den Owner sichtbar.');
           }
-          if (number === '8' && !isSpicyMenuVisible(ctx)) {
-            return ctx.reply(`Dieses Menü ist nicht aktiviert. Ein Owner oder Mod muss zuerst ${commandPrefix(ctx)}spicy on nutzen.`);
-          }
           return ctx.sendMenu(number);
         });
       }
