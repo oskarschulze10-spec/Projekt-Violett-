@@ -108,7 +108,7 @@ module.exports = (runtime) => {
         await ctx.reply(`📚 REGISTRIERTE BEFEHLE\n\n${unique
           .map((command) => `${prefix}${command.names[0]} — ${command.description}`)
           .join('\n')}`);
-      });
+      }, { allowPrivate: true, allowUnregistered: true });
     },
   },
   {
@@ -141,7 +141,7 @@ module.exports = (runtime) => {
             return ctx.reply('🔒 Dieses Owner-Menü ist ausschließlich für den Owner sichtbar.');
           }
           return ctx.sendMenu(number);
-        });
+        }, { allowPrivate: true, allowUnregistered: true });
       }
     },
   },
