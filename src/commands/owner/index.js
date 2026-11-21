@@ -654,7 +654,7 @@ module.exports = (runtime) => {
         if (!requireRole(ctx, 'owner')) return ctx.reply('Nur der Owner darf Support ernennen.');
         const target = mentionJids(ctx)[0];
         if (!target) return ctx.reply(`Erwähne die Person: ${commandPrefix(ctx)}addsupport @Nutzer`);
-        const number = ctx.normalizeJid(target);
+        const number = await resolvePhoneNumber(ctx, target) || ctx.normalizeJid(target);
         if (!ctx.data.support.includes(number)) ctx.data.support.push(number);
         ctx.data.coOwners = (ctx.data.coOwners || []).filter((entry) => ctx.normalizeJid(entry) !== number);
         ctx.data.mods = (ctx.data.mods || []).filter((entry) => ctx.normalizeJid(entry) !== number);
