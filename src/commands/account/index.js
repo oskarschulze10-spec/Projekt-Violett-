@@ -81,7 +81,7 @@ module.exports = (runtime) => {
       register(['register'], 'Namen für die Bot-Nutzung registrieren', async (ctx) => {
         if (!ctx.isGroup) return ctx.reply('🔒 Datenschutz und Registrierung sind nur in Gruppen möglich.');
         if (!user(ctx).privacyAccepted || user(ctx).privacyVersion !== PRIVACY_VERSION) {
-          return ctx.reply(`🔒 Akzeptiere zuerst die Datenschutzinformationen mit ${commandPrefix(ctx)}dsgvo akzeptieren.`);
+          return ctx.reply(`Please accept the privacy notice first with ${commandPrefix(ctx)}dsgvo accept.`);
         }
         const name = ctx.args.join(' ').trim();
         if (!name || name.length < 2 || name.length > 40) {
@@ -110,7 +110,7 @@ module.exports = (runtime) => {
       register(['dsgvo'], 'Datenschutzinformationen anzeigen und akzeptieren', async (ctx) => {
         if (!ctx.isGroup) return ctx.reply('🔒 Datenschutz und Registrierung sind nur in Gruppen möglich.');
         const account = user(ctx);
-        if (ctx.args[0]?.toLowerCase() !== 'akzeptieren') {
+        if (!['accept', 'akzeptieren'].includes((ctx.args[0] || '').toLowerCase())) {
           await ctx.reply(
             '🔐 Datenschutzinformationen\n\n' +
             'Für die Bot-Nutzung werden deine Telefonnummer, deine WhatsApp-LID (sofern verfügbar), dein Name, ' +
@@ -118,7 +118,7 @@ module.exports = (runtime) => {
             'einem lokalen Datenordner (standardmäßig data/bot-data.json und data/users/). WhatsApp-Nachrichten werden verarbeitet, ' +
             `damit der Bot antworten kann. Mit ${commandPrefix(ctx)}deleteaccount kannst du deine Accountdaten löschen. ` +
             'Datenschutz und Registrierung sind nur in Gruppen möglich; für die Registrierung müssen Telefonnummer und LID zuordenbar sein.\n\n' +
-            `Wenn du einverstanden bist, nutze: ${commandPrefix(ctx)}dsgvo akzeptieren`,
+            `If you agree, use: ${commandPrefix(ctx)}dsgvo accept`,
           );
           return;
         }
@@ -132,7 +132,7 @@ module.exports = (runtime) => {
           ctx.senderLid,
         ].filter(Boolean))];
         ctx.saveData();
-        await ctx.reply(`✅ Datenschutz akzeptiert. Registriere dich anschließend mit ${commandPrefix(ctx)}register <Name>.`);
+        await ctx.reply(`Privacy notice accepted. Now register with ${commandPrefix(ctx)}register <name>.`);
       });
     },
   },
