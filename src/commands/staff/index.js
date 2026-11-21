@@ -372,7 +372,7 @@ module.exports = (runtime) => {
           ctx.data.alliancePartners = ctx.data.alliancePartners.filter((entry) => entry.jid !== ctx.jid);
           ctx.saveData();
           await ctx.reply('Alliance partner removed.');
-        });
+        }, { allowPrivate: true, allowUnregistered: true });
       },
     },
     {
@@ -403,7 +403,7 @@ module.exports = (runtime) => {
             ...(partners.length ? partners : ['No partners configured yet.']),
             '╰━━━━━━━━━━━━━━━━━━━━━━━━╯',
           ].join('\n'));
-        });
+        }, { allowPrivate: true, allowUnregistered: true });
       },
     },
     {
@@ -417,7 +417,7 @@ module.exports = (runtime) => {
               : has(ctx.data.mods) || has(ctx.data.groupVictims) ? 'Moderator · Level 2'
                 : has(ctx.data.support) ? 'Supporter · Level 1' : 'Member';
           await ctx.reply('💜 VIOLETTÉ STAFF RANK\n' + rank);
-        });
+        }, { allowPrivate: true, allowUnregistered: true });
       },
     },
     {
