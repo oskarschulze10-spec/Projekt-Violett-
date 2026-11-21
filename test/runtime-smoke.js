@@ -24,8 +24,8 @@ async function run() {
   assert.strictEqual('shouldSyncHistoryMessage' in baileysConfig, false);
 
   const uniqueCommands = new Set(commands.values());
-  assert.strictEqual(commands.size, 161);
-  assert.strictEqual(uniqueCommands.size, 139);
+  assert.strictEqual(commands.size, 176);
+  assert.strictEqual(uniqueCommands.size, 154);
   assert.ok([...uniqueCommands].every((command) => (
     typeof command.handler === 'function'
     && command.names.length > 0
@@ -293,7 +293,7 @@ async function run() {
   assert.strictEqual(data.users[registeredNumber].privacyVersion, PRIVACY_VERSION);
   assert.strictEqual(data.users[registeredNumber].lid, '123456789@lid');
   await sendGroupCommand('#menu');
-  assert.match(sent[sent.length - 1].content.text, /#register <Name>/);
+  assert.match(sent[sent.length - 1].content.text, /#register <name>/);
   await sendGroupCommand('#register Test User');
   assert.strictEqual(data.users[registeredNumber].displayName, 'Test User');
   assert.strictEqual(data.users[registeredNumber].phoneNumber, registeredNumber);
@@ -532,18 +532,18 @@ async function run() {
     },
   });
   assert.strictEqual(sent.length, sentBeforeCategoryMenu + 1);
-  assert.match(sent[sentBeforeCategoryMenu].content.text, /ACCOUNT GARDEN/);
-  assert.strictEqual(relayed.length, relayedBeforeCategoryMenu);
+  assert.match(sent[sentBeforeCategoryMenu].content.text, /ACCOUNT/);
+  assert.strictEqual(relayed.length, relayedBeforeCategoryMenu + 1);
 
   await dispatchMessage({
     ...common,
     message: {
       key: { remoteJid: '491701234567@s.whatsapp.net', fromMe: false },
-      message: { conversation: '#menu7' },
+      message: { conversation: '#ownermenu' },
     },
   });
-  assert.match(sent[sent.length - 1].content.text, /setdesign <Befehl> <Text>/);
-  assert.match(sent[sent.length - 1].content.text, /resetdesign <Befehl>/);
+  assert.match(sent[sent.length - 1].content.text, /setdesign <command> <text>/);
+  assert.match(sent[sent.length - 1].content.text, /resetdesign <command>/);
 
   await dispatchMessage({
     ...common,
