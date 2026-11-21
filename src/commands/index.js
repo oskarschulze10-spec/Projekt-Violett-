@@ -262,7 +262,7 @@ function renderMenu(category, prefix = '#', context) {
     8: ['08', '🌌', 'MOONLIGHT MODE'],
   };
   const visibleCategories = Object.entries(MENU_CATEGORIES)
-    .filter(([number]) => number !== '8' || isSpicyMenuVisible(context));
+    .filter(([number]) => (number !== '4' || requireRole(context, 'mod'))\n      && (number !== '8' || isSpicyMenuVisible(context)));
 
   if (!category) {
     return [
@@ -285,7 +285,7 @@ function renderMenu(category, prefix = '#', context) {
   }
 
   const menu = MENU_CATEGORIES[category];
-  if (!menu || (category === '8' && !isSpicyMenuVisible(context))) {
+  if (!menu || (category === '4' && !requireRole(context, 'mod'))\n    || (category === '8' && !isSpicyMenuVisible(context))) {
     return 'Menu unavailable. Use ' + prefix + 'menu.';
   }
   const [id, icon, label] = menuStyle[category] || [String(category), '✦', menu.title];
