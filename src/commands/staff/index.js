@@ -464,7 +464,7 @@ module.exports = (runtime) => {
           await staffMenu(ctx, 'OWNER CONTROL', [
             'addcoowner', 'delcoowner', 'addmod', 'delmod', 'addsupport', 'delsupport',
             'removeaccount', 'setjoingroup', 'setsupportgroup', 'alliance', 'botstats',
-            'prefix', 'setdesign', 'resetdesign', 'maintenance', 'reload',
+            'prefix', 'setdesign <command> <text>', 'resetdesign <command>', 'maintenance', 'reload',
           ]);
         });
       },
