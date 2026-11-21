@@ -326,7 +326,6 @@ async function dispatchMessage({
   ].filter(Boolean);
   const sender = fromMe ? config.botNumber : (phoneNumber || normalizedJid(candidates[0]));
   const isOwner = config.ownerNumbers.includes(sender);
-  if (!isGroup && !isOwner) return false;
 
   const prefix = data.settings.prefix || config.prefix;
   const text = messageText(message);
@@ -339,7 +338,14 @@ async function dispatchMessage({
   const parsed = commandFromText(text, prefix);
   if (!parsed) return false;
   const resolvedName = data.aliases[parsed.name] || parsed.name;
-  if (!isOwner) {
+  const command = commands.get(resolvedName);
+  if (!command) return false;
+  if (!isGroup && !isOwner && !command.privateOnly && !command.allowPrivate) return false;
+  if (isGroup && command.privateOnly) {
+    await sock.sendMessage(message.key.remoteJid, { text: 'Please use this command in a private chat.' });
+    return true;
+  }
+  if (!isOwner && !command.allowUnregistered) {
     const account = data.users[sender];
     const onboardingCommands = new Set(['dsgvo', 'register', 'privacy', 'deleteaccount']);
     if ((!account?.privacyAccepted || account.privacyVersion !== PRIVACY_VERSION)
@@ -357,8 +363,6 @@ async function dispatchMessage({
       return true;
     }
   }
-  const command = commands.get(resolvedName);
-  if (!command) return false;
   logger?.info({
     event: 'command_received',
     command: resolvedName,
