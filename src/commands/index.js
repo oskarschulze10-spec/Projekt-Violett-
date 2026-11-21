@@ -134,9 +134,11 @@ function requireRole(context, role) {
   const hasRole = (members) => (members || []).some((member) => (
     senderIds.has(context.normalizeJid(member))
   ));
+  const isCoOwner = hasRole(context.data.coOwners);
   const isModerator = hasRole(context.data.mods) || hasRole(context.data.groupVictims);
-  if (role === 'mod' && isModerator) return true;
-  if (role === 'support' && (isModerator || hasRole(context.data.support))) return true;
+  if (role === 'coowner' && isCoOwner) return true;
+  if (role === 'mod' && (isCoOwner || isModerator)) return true;
+  if (role === 'support' && (isCoOwner || isModerator || hasRole(context.data.support))) return true;
   return false;
 }
 
@@ -1361,6 +1363,7 @@ const commandRuntime = {
   ...require('./general')(commandRuntime),
   ...require('./owner')(commandRuntime),
   ...require('./team')(commandRuntime),
+  ...require('./staff')(commandRuntime),
   ...require('./account')(commandRuntime),
   ...require('./economy')(commandRuntime),
   ...require('./fun')(commandRuntime),
