@@ -222,13 +222,14 @@ module.exports = (runtime) => {
           const name = displayUser(ctx, number);
           return name === number ? number : `${name} (${number})`;
         };
-        const [owners, mods, groupVictims, support] = await Promise.all([
+        const [owners, coOwners, mods, groupVictims, support] = await Promise.all([
           Promise.all(ctx.ownerNumbers.map(formatMember)),
+          Promise.all((ctx.data.coOwners || []).map(formatMember)),
           Promise.all(ctx.data.mods.map(formatMember)),
           Promise.all((ctx.data.groupVictims || []).map(formatMember)),
           Promise.all(ctx.data.support.map(formatMember)),
         ]);
-        await ctx.reply(`👥 Team\n👑 Owner: ${owners.join(', ')}\n🛡️ Mods: ${mods.length ? mods.join(', ') : 'keine'}\n🎭 GruppenOpfer (GO): ${groupVictims.length ? groupVictims.join(', ') : 'keine'}\n🆘 Support: ${support.length ? support.join(', ') : 'keiner'}`);
+        await ctx.reply(`👥 Team\n👑 Owner: ${owners.join(', ')}\n💜 Co-Owners: ${coOwners.length ? coOwners.join(', ') : 'none'}\n🛡️ Mods: ${mods.length ? mods.join(', ') : 'keine'}\n🎭 GruppenOpfer (GO): ${groupVictims.length ? groupVictims.join(', ') : 'keine'}\n🆘 Support: ${support.length ? support.join(', ') : 'keiner'}`);
       });
     },
   },
@@ -242,7 +243,8 @@ module.exports = (runtime) => {
         const mods = await Promise.all(ctx.data.mods.map((number) => resolvePhoneNumber(ctx, number)));
         const groupVictims = await Promise.all((ctx.data.groupVictims || []).map((number) => resolvePhoneNumber(ctx, number)));
         const support = await Promise.all(ctx.data.support.map((number) => resolvePhoneNumber(ctx, number)));
-        await ctx.reply(`🛡️ ${displayName(ctx, target)}\nRolle: ${isOwner(ctx, target) ? 'Owner' : groupVictims.includes(target) ? 'GruppenOpfer (GO)' : mods.includes(target) ? 'Moderator' : support.includes(target) ? 'Support' : 'Keine Teamrolle'}`);
+        const coOwners = await Promise.all((ctx.data.coOwners || []).map((number) => resolvePhoneNumber(ctx, number)));
+        await ctx.reply(`🛡️ ${displayName(ctx, target)}\nRolle: ${isOwner(ctx, target) ? 'Owner' : coOwners.includes(target) ? 'Co-Owner · Level 3' : groupVictims.includes(target) ? 'GruppenOpfer (GO)' : mods.includes(target) ? 'Moderator' : support.includes(target) ? 'Support' : 'Keine Teamrolle'}`);
       });
     },
   },
