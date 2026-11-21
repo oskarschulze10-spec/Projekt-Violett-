@@ -85,9 +85,18 @@ module.exports = (runtime) => {
   {
     order: 29901,
     register() {
-      register(['help', 'menu'], 'Kategorien-Menü anzeigen', async (ctx) => (
-        ctx.sendMenu()
-      ));
+      register(['help', 'menu'], 'Open the menu or explain a command', async (ctx) => {
+        const requested = (ctx.args[0] || '').toLowerCase().replace(/^#/, '');
+        if (!requested) return ctx.sendMenu();
+        const command = commands.get(requested);
+        if (!command) return ctx.reply('Unknown command: ' + requested + '. Use ' + commandPrefix(ctx) + 'commands.');
+        await ctx.reply(
+          '💜 COMMAND HELP\\n'
+          + 'Command: ' + commandPrefix(ctx) + command.names[0] + '\\n'
+          + 'Aliases: ' + command.names.map((name) => commandPrefix(ctx) + name).join(', ') + '\\n'
+          + 'Info: ' + command.description
+        );
+      }, { allowPrivate: true, allowUnregistered: true });
     },
   },
   {
