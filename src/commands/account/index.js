@@ -78,17 +78,17 @@ module.exports = (runtime) => {
   {
     order: 49218,
     register() {
-      register(['register'], 'Namen für die Bot-Nutzung registrieren', async (ctx) => {
-        if (!ctx.isGroup) return ctx.reply('🔒 Datenschutz und Registrierung sind nur in Gruppen möglich.');
+      register(['register'], 'Register a name for Violette', async (ctx) => {
+        if (!ctx.isGroup) return ctx.reply('Privacy acceptance and registration are only available in groups.');
         if (!user(ctx).privacyAccepted || user(ctx).privacyVersion !== PRIVACY_VERSION) {
           return ctx.reply(`Please accept the privacy notice first with ${commandPrefix(ctx)}dsgvo accept.`);
         }
         const name = ctx.args.join(' ').trim();
         if (!name || name.length < 2 || name.length > 40) {
-          return ctx.reply(`Nutzung: ${commandPrefix(ctx)}register <Name> (2 bis 40 Zeichen)`);
+          return ctx.reply(`Usage: ${commandPrefix(ctx)}register <name> (2 to 40 characters)`);
         }
         if (!/^\d{7,15}$/.test(String(ctx.phoneNumber || '')) || !ctx.senderLid) {
-          return ctx.reply('Telefonnummer oder WhatsApp-LID konnte nicht sicher zugeordnet werden. Bitte versuche es nach der LID-Synchronisierung erneut.');
+          return ctx.reply('Your phone number or WhatsApp LID could not be verified. Please try again after synchronization.');
         }
         const account = user(ctx);
         account.displayName = name;
@@ -100,24 +100,24 @@ module.exports = (runtime) => {
         ].filter(Boolean))];
         account.registeredAt = new Date().toISOString();
         ctx.saveData();
-        await ctx.reply(`✅ Danke, ${name}. Dein Account ist registriert.`);
+        await ctx.reply(`Account registered. Welcome, ${name}.`);
       });
     },
   },
   {
     order: 52247,
     register() {
-      register(['dsgvo'], 'Datenschutzinformationen anzeigen und akzeptieren', async (ctx) => {
-        if (!ctx.isGroup) return ctx.reply('🔒 Datenschutz und Registrierung sind nur in Gruppen möglich.');
+      register(['dsgvo'], 'Show and accept the privacy notice', async (ctx) => {
+        if (!ctx.isGroup) return ctx.reply('Privacy acceptance and registration are only available in groups.');
         const account = user(ctx);
         if (!['accept', 'akzeptieren'].includes((ctx.args[0] || '').toLowerCase())) {
           await ctx.reply(
-            '🔐 Datenschutzinformationen\n\n' +
-            'Für die Bot-Nutzung werden deine Telefonnummer, deine WhatsApp-LID (sofern verfügbar), dein Name, ' +
-            'deine Zustimmung und Accountdaten wie Guthaben lokal gespeichert. Die Daten liegen in ' +
-            'einem lokalen Datenordner (standardmäßig data/bot-data.json und data/users/). WhatsApp-Nachrichten werden verarbeitet, ' +
-            `damit der Bot antworten kann. Mit ${commandPrefix(ctx)}deleteaccount kannst du deine Accountdaten löschen. ` +
-            'Datenschutz und Registrierung sind nur in Gruppen möglich; für die Registrierung müssen Telefonnummer und LID zuordenbar sein.\n\n' +
+            '🔐 PRIVACY NOTICE\n\n' +
+            'Violette stores your phone number, WhatsApp LID (if available), display name, ' +
+            'your consent and account data such as wallet balance locally. Data is stored in ' +
+            'the bot data folder (normally data/bot-data.json and data/users/). WhatsApp messages are processed ' +
+            `to provide bot features. Use ${commandPrefix(ctx)}deleteaccount to remove your account. ` +
+            'Privacy acceptance and registration are only available in groups. A verifiable phone number and LID are required.\n\n' +
             `If you agree, use: ${commandPrefix(ctx)}dsgvo accept`,
           );
           return;
@@ -207,10 +207,10 @@ module.exports = (runtime) => {
   {
     order: 60101,
     register() {
-      register(['privacy'], 'Datenschutzstatus anzeigen', async (ctx) => {
+      register(['privacy'], 'Show privacy status', async (ctx) => {
         const account = user(ctx);
         const accepted = account.privacyAccepted && account.privacyVersion === PRIVACY_VERSION;
-        await ctx.reply(`🔐 Datenschutz: ${accepted ? 'akzeptiert' : 'nicht akzeptiert'}\nLokal gespeichert werden Telefonnummer, WhatsApp-LID (sofern verfügbar), Name und Accountdaten. Löschen mit ${commandPrefix(ctx)}deleteaccount.`);
+        await ctx.reply(`🔐 Privacy: ${accepted ? 'accepted' : 'not accepted'}\nStored locally: phone number, WhatsApp LID (if available), name and account data. Delete with ${commandPrefix(ctx)}deleteaccount.`);
       });
     },
   },
@@ -219,11 +219,11 @@ module.exports = (runtime) => {
     register() {
       register(['deleteaccount'], 'Eigene Accountdaten löschen', async (ctx) => {
         const id = ctx.normalizeJid(ctx.sender);
-        if (!ctx.data.users[id]) return ctx.reply('Für dich sind keine Accountdaten gespeichert.');
+        if (!ctx.data.users[id]) return ctx.reply('No account data is stored for you.');
         delete ctx.data.users[id];
         delete ctx.data.userTodos?.[id];
         ctx.saveData();
-        await ctx.reply('✅ Deine eigenen Accountdaten wurden gelöscht. Für eine erneute Nutzung musst du dich neu registrieren.');
+        await ctx.reply('Your account data has been deleted. Accept the privacy notice and register again to use Violette.');
       });
     },
   },
