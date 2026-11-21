@@ -120,13 +120,13 @@ module.exports = (runtime) => {
               '│ Group: ' + groupName,
               '│ Invite: https://chat.whatsapp.com/' + match[1],
               '│',
-              '│ Accept: #approvejoin ' + id,
-              '│ Reject: #rejectjoin ' + id,
+              '│ Accept: ' + commandPrefix(ctx) + 'approvejoin ' + id,
+              '│ Reject: ' + commandPrefix(ctx) + 'rejectjoin ' + id,
               '╰─ DESIGN BY 7',
             ].join('\n'),
           });
           await ctx.reply('Your join request #' + id + ' has been sent to the team.');
-        }, { privateOnly: true, allowUnregistered: true });
+        }, { privateOnly: true, allowUnregistered: true, usage: 'join <WhatsApp group invite link>' });
       },
     },
     {
@@ -197,13 +197,13 @@ module.exports = (runtime) => {
               '│ Number: +' + requester,
               '│ Message: ' + message,
               '│',
-              '│ Reply: #supportreply ' + id + ' <message>',
-              '│ Close: #supportclose ' + id,
+              '│ Reply: ' + commandPrefix(ctx) + 'supportreply ' + id + ' <message>',
+              '│ Close: ' + commandPrefix(ctx) + 'supportclose ' + id,
               '╰─ DESIGN BY 7',
             ].join('\n'),
           });
           await ctx.reply('Support ticket #' + id + ' has been sent. The team will reply here.');
-        }, { privateOnly: true, allowUnregistered: true });
+        }, { privateOnly: true, allowUnregistered: true, usage: 'support <describe your problem>' });
       },
     },
     {
@@ -218,7 +218,7 @@ module.exports = (runtime) => {
           const message = ctx.args.slice(1).join(' ').trim();
           const ticket = ctx.data.supportTickets?.[id];
           if (!ticket || ticket.status !== 'open') return ctx.reply('Open ticket not found.');
-          if (!message) return ctx.reply('Usage: #supportreply <ticket ID> <message>');
+          if (!message) return ctx.reply('Usage: ' + commandPrefix(ctx) + 'supportreply <ticket ID> <message>');
           await ctx.sock.sendMessage(ticket.requester + '@s.whatsapp.net', {
             text: '💜 Violette Support · Ticket #' + id + '\n\n' + message,
           });
@@ -282,7 +282,7 @@ module.exports = (runtime) => {
         register(['removeaccount'], 'Permanently remove a user account and its stored data', async (ctx) => {
           if (!requireRole(ctx, 'owner')) return ctx.reply('Only the owner can remove accounts.');
           if ((ctx.args[0] || '').toLowerCase() !== 'confirm') {
-            return ctx.reply('Usage: #removeaccount confirm @user or #removeaccount confirm <phone number>. This permanently deletes the account.');
+            return ctx.reply('Usage: ' + commandPrefix(ctx) + 'removeaccount confirm @user or ' + commandPrefix(ctx) + 'removeaccount confirm <phone number>. This permanently deletes the account.');
           }
           const mention = mentionJids(ctx)[0];
           const raw = ctx.args.find((arg) => /\d{7,15}/.test(arg));
@@ -394,7 +394,7 @@ module.exports = (runtime) => {
           await ctx.reply([
             '╭━━ 💜 VIOLETTÉ COMMUNITY ━━╮',
             'Registered users: ' + users.length,
-            'Bot online since: ' + new Date(createdAt).toLocaleDateString('en-GB'),
+            'First recorded activity: ' + new Date(createdAt).toLocaleDateString('en-GB'),
             'Days since launch: ' + days,
             'Connected groups: ' + Object.keys(groups).length,
             'Alliance partners: ' + (ctx.data.alliancePartners || []).length,
