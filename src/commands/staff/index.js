@@ -240,7 +240,7 @@ module.exports = (runtime) => {
       order: 116600,
       register() {
         register(['setjoingroup'], 'Set the group that receives join requests', async (ctx) => {
-          if (!requireRole(ctx, 'owner')) return ctx.reply('Only the owner can configure the join request group.');
+          if (!requireRole(ctx, 'coowner')) return ctx.reply('Only the co-owner and owner can configure the join request group.');
           const target = ctx.isGroup ? ctx.jid : (ctx.args[0] || '');
           if (!target.endsWith('@g.us')) return ctx.reply('Run this command inside the target group or provide its group ID.');
           ctx.data.settings.joinGroup = target;
@@ -253,7 +253,7 @@ module.exports = (runtime) => {
       order: 116700,
       register() {
         register(['setsupportgroup'], 'Set the group that receives support tickets', async (ctx) => {
-          if (!requireRole(ctx, 'owner')) return ctx.reply('Only the owner can configure the support group.');
+          if (!requireRole(ctx, 'coowner')) return ctx.reply('Only the co-owner and owner can configure the support group.');
           const target = ctx.isGroup ? ctx.jid : (ctx.args[0] || '');
           if (!target.endsWith('@g.us')) return ctx.reply('Run this command inside the target group or provide its group ID.');
           ctx.data.settings.supportGroup = target;
@@ -325,7 +325,6 @@ module.exports = (runtime) => {
       order: 117100,
       register() {
         register(['alliance'], 'Manage Violette alliance partner groups', async (ctx) => {
-          if (!requireRole(ctx, 'coowner')) return ctx.reply('Only the co-owner and owner can manage alliance partners.');
           ctx.data.alliancePartners ||= [];
           const action = (ctx.args[0] || 'list').toLowerCase();
           if (action === 'list') {
@@ -333,6 +332,7 @@ module.exports = (runtime) => {
             return ctx.reply('💜 ALLIANCE PARTNERS\n' + ctx.data.alliancePartners.map((entry, i) =>
               (i + 1) + '. ' + entry.name + '\n' + (entry.inviteLink || entry.jid)).join('\n\n'));
           }
+          if (!requireRole(ctx, 'coowner')) return ctx.reply('Only the co-owner and owner can manage alliance partners.');
           if (!['add', 'remove'].includes(action) || !ctx.isGroup) {
             return ctx.reply('Usage: #alliance add [name] or #alliance remove (run inside the partner group).');
           }
