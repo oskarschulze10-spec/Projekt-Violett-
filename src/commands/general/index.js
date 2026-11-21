@@ -134,7 +134,7 @@ module.exports = (runtime) => {
     register() {
       for (const [number, menu] of Object.entries(MENU_CATEGORIES)) {
         register([`menu${number}`], `${menu.title} anzeigen`, async (ctx) => {
-          if (number === '7' && !isCurrentOwner(ctx)) {
+          if (number === '4' && !requireRole(ctx, 'mod')) {\n            return ctx.reply('This menu is only available to moderators and above.');\n          }\n          if (number === '7' && !isCurrentOwner(ctx)) {
             return ctx.reply('🔒 Dieses Owner-Menü ist ausschließlich für den Owner sichtbar.');
           }
           if (number === '8' && !isSpicyMenuVisible(ctx)) {
