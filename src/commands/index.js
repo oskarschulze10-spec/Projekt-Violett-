@@ -343,8 +343,8 @@ async function sendInteractiveMenu(context, category) {
     }
 
     bodyText = menu.title
-      + '\nModul geoeffnet: ' + menu.commands.length
-      + ' Befehle\n\nFull command list shown above.';
+      + '\nModule opened · ' + menu.commands.length
+      + ' commands\n\nFull command list shown above.';
 
     headerTitle = menu.title;
     footerText = 'PROJECT VIOLETTE - DESIGN BY 7';
@@ -374,15 +374,15 @@ async function sendInteractiveMenu(context, category) {
       {
         name: 'single_select',
         buttonParamsJson: JSON.stringify({
-          title: 'CONTROL CENTER OEFFNEN',
+          title: 'OPEN CONTROL CENTER',
           sections: [
             {
-              title: 'VERFUEGBARE MODULE',
+              title: 'AVAILABLE MODULES',
               rows: visibleCategories.map(([number, menu]) => ({
                 id: prefix + 'menu' + number,
                 title: menu.title,
                 description: menu.commands.length
-                  + ' Befehle - Modul '
+                  + ' commands - module '
                   + String(number).padStart(2, '0'),
               })),
             },
