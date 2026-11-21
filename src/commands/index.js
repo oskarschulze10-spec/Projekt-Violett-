@@ -220,7 +220,9 @@ const MENU_CATEGORIES = {
       ['daily'], ['weekly'], ['work'], ['shop'], ['buy <item>'], ['inventory'],
       ['überweisung @user <amount>'], ['bankkonto [bank]'], ['bankeinzahlung <amount>'],
       ['bankauszahlung <amount>'], ['banktransfer @user <amount>'], ['top'],
-      ['interest'], ['deposit <amount> [days]'], ['economy'], ['coinflip <amount>'],\n      ['slots <amount>'], ['dice <amount>'], ['roulette <colour> <amount>'],\n      ['blackjack <amount>'], ['crash <amount>'],
+      ['interest'], ['deposit <amount> [days]'], ['economy'], ['coinflip <amount>'],
+      ['slots <amount>'], ['dice <amount>'], ['roulette <colour> <amount>'],
+      ['blackjack <amount>'], ['crash <amount>'],
     ],
   },
   4: {
