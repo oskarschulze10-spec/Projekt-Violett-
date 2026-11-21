@@ -275,13 +275,13 @@ function renderMenu(category, prefix = '#', context) {
       '',
       ...visibleCategories.map(([number, menu]) => {
         const [id, icon, label] = menuStyle[number] || [number, '✦', menu.title];
-        return '  ┏ ' + id + '  ' + icon + '  ' + label + '\\n  ┗ ' + prefix + 'menu' + number;
+        return '  ┏ ' + id + '  ' + icon + '  ' + label + '\n  ┗ ' + prefix + 'menu' + number;
       }),
       '',
       '  ────────────────────────────',
       '  ✦ ' + prefix + 'commands',
       '  ✦ DESIGN BY 7 · POWERED BY VIOLETTÉ',
-    ].join('\\n');
+    ].join('\n');
   }
 
   const menu = MENU_CATEGORIES[category];
@@ -302,7 +302,7 @@ function renderMenu(category, prefix = '#', context) {
     '  ────────────────────────────',
     '  ◀ ' + prefix + 'menu',
     '  ◈ DESIGN BY 7 · PROJECT VIOLETTÉ',
-  ].join('\\n');
+  ].join('\n');
 }
 
 async function sendMenu(context, category) {
@@ -351,7 +351,7 @@ async function sendInteractiveMenu(context, category) {
 
     bodyText = menu.title
       + '\nModul geoeffnet: ' + menu.commands.length
-      + ' Befehle\n\nDie vollstaendige Befehlsuebersicht steht direkt ueber dieser Nachricht.';
+      + ' Befehle\n\nFull command list shown above.';
 
     headerTitle = menu.title;
     footerText = 'PROJECT VIOLETTE - DESIGN BY 7';
@@ -360,20 +360,20 @@ async function sendInteractiveMenu(context, category) {
       {
         name: 'quick_reply',
         buttonParamsJson: JSON.stringify({
-          display_text: 'Zurueck zum Nexus',
+          display_text: 'Back to Nexus',
           id: prefix + 'menu',
         }),
       },
       {
         name: 'quick_reply',
         buttonParamsJson: JSON.stringify({
-          display_text: 'Alle Befehle',
+          display_text: 'All commands',
           id: prefix + 'commands',
         }),
       },
     ];
   } else {
-    bodyText = 'NEXUS V7 - Waehle ein Modul aus.';
+    bodyText = 'NEXUS V8 - Select a module.';
     headerTitle = 'PROJECT VIOLETTE';
     footerText = 'DESIGN BY 7 - SYSTEM ONLINE';
 
