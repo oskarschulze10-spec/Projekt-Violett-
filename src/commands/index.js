@@ -207,10 +207,9 @@ const MENU_CATEGORIES = {
   2: {
     title: '✨ FUN ZONE',
     commands: [
-      ['hug @user'], ['kiss @user'], ['aura [@user]'], ['howgay [@user]'],
-      ['slap @user'], ['pat @user'], ['ship @user1 @user2'], ['cuddle @user'],
+      ['aura [@user]'], ['howgay [@user]'], ['slap @user'], ['pat @user'],
       ['highfive @user'], ['blush @user'], ['wink @user'], ['comfort @user'],
-      ['wave @user'], ['bonk @user'], ['flirt @user'], ['joke'], ['8ball <question>'],
+      ['wave @user'], ['bonk @user'], ['joke'], ['8ball <question>'],
       ['rate <text>'],
     ],
   },
@@ -220,9 +219,7 @@ const MENU_CATEGORIES = {
       ['daily'], ['weekly'], ['work'], ['shop'], ['buy <item>'], ['inventory'],
       ['überweisung @user <amount>'], ['bankkonto [bank]'], ['bankeinzahlung <amount>'],
       ['bankauszahlung <amount>'], ['banktransfer @user <amount>'], ['top'],
-      ['interest'], ['deposit <amount> [days]'], ['economy'], ['coinflip <amount>'],
-      ['slots <amount>'], ['dice <amount>'], ['roulette <colour> <amount>'],
-      ['blackjack <amount>'], ['crash <amount>'],
+      ['interest'], ['deposit <amount> [days]'], ['economy'],
     ],
   },
   4: {
