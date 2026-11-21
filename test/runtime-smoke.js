@@ -289,7 +289,7 @@ async function run() {
   assert.match(sent[sent.length - 1].content.text, /#dsgvo/);
   await sendGroupCommand('#dsgvo');
   assert.match(sent[sent.length - 1].content.text, /data\/users\//);
-  await sendGroupCommand('#dsgvo akzeptieren');
+  await sendGroupCommand('#dsgvo accept');
   assert.strictEqual(data.users[registeredNumber].privacyVersion, PRIVACY_VERSION);
   assert.strictEqual(data.users[registeredNumber].lid, '123456789@lid');
   await sendGroupCommand('#menu');
