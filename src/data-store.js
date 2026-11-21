@@ -46,7 +46,11 @@ function createDataStore(filePath) {
       settings: { ...DEFAULT_DATA.settings, ...(parsed.settings || {}) },
     };
   }
-  data.settings.botCreatedAt ||= Date.now();
+  const firstRegistration = Object.values(data.users || {})
+    .map((account) => Date.parse(account?.registeredAt || ''))
+    .filter((timestamp) => Number.isFinite(timestamp) && timestamp > 0)
+    .sort((a, b) => a - b)[0];
+  data.settings.botCreatedAt ||= firstRegistration || Date.now();
   data.coOwners ||= [];
   data.alliancePartners ||= [];
   data.supportTickets ||= {};
