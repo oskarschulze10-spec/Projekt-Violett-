@@ -70,7 +70,7 @@ module.exports = (runtime) => {
 
   return [
     {
-      order: 116000,
+      order: 118000,
       register() {
         register(['join'], 'Request that Violette joins a WhatsApp group', async (ctx) => {
           if (ctx.isGroup) return ctx.reply('Please send #join in a private chat.');
@@ -116,7 +116,7 @@ module.exports = (runtime) => {
       },
     },
     {
-      order: 116100,
+      order: 118100,
       register() {
         register(['approvejoin'], 'Accept a pending join request', async (ctx) => {
           if (!requireRole(ctx, 'mod')) return ctx.reply('This action is for moderators and above.');
@@ -138,7 +138,7 @@ module.exports = (runtime) => {
       },
     },
     {
-      order: 116200,
+      order: 118200,
       register() {
         register(['rejectjoin'], 'Reject a pending join request', async (ctx) => {
           if (!requireRole(ctx, 'mod')) return ctx.reply('This action is for moderators and above.');
