@@ -584,6 +584,8 @@ module.exports = (runtime) => {
         }
         ctx.data.groupVictims = (ctx.data.groupVictims || [])
           .filter((entry) => !identifiers.has(ctx.normalizeJid(entry)));
+        ctx.data.coOwners = (ctx.data.coOwners || []).filter((entry) => !identifiers.has(ctx.normalizeJid(entry)));
+        ctx.data.support = (ctx.data.support || []).filter((entry) => !identifiers.has(ctx.normalizeJid(entry)));
         ctx.saveData();
         await ctx.reply('✅ Moderator hinzugefügt.');
       });
@@ -654,6 +656,9 @@ module.exports = (runtime) => {
         if (!target) return ctx.reply(`Erwähne die Person: ${commandPrefix(ctx)}addsupport @Nutzer`);
         const number = ctx.normalizeJid(target);
         if (!ctx.data.support.includes(number)) ctx.data.support.push(number);
+        ctx.data.coOwners = (ctx.data.coOwners || []).filter((entry) => ctx.normalizeJid(entry) !== number);
+        ctx.data.mods = (ctx.data.mods || []).filter((entry) => ctx.normalizeJid(entry) !== number);
+        ctx.data.groupVictims = (ctx.data.groupVictims || []).filter((entry) => ctx.normalizeJid(entry) !== number);
         ctx.saveData();
         await ctx.reply('✅ Support hinzugefügt.');
       });
