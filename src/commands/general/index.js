@@ -91,9 +91,9 @@ module.exports = (runtime) => {
         const command = commands.get(requested);
         if (!command) return ctx.reply('Unknown command: ' + requested + '. Use ' + commandPrefix(ctx) + 'commands.');
         await ctx.reply(
-          '💜 COMMAND HELP\\n'
-          + 'Command: ' + commandPrefix(ctx) + command.names[0] + '\\n'
-          + 'Aliases: ' + command.names.map((name) => commandPrefix(ctx) + name).join(', ') + '\\n'
+          '💜 COMMAND HELP\n'
+          + 'Command: ' + commandPrefix(ctx) + command.names[0] + '\n'
+          + 'Aliases: ' + command.names.map((name) => commandPrefix(ctx) + name).join(', ') + '\n'
           + 'Info: ' + command.description
         );
       }, { allowPrivate: true, allowUnregistered: true });
