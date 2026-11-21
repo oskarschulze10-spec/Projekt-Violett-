@@ -10,7 +10,11 @@ const DEFAULT_DATA = {
   mods: [],
   groupVictims: [],
   support: [],
-  settings: { prefix: '#', commandDesigns: {} },
+  coOwners: [],
+  alliancePartners: [],
+  supportTickets: {},
+  nextSupportId: 1,
+  settings: { prefix: '#', commandDesigns: {}, joinGroup: null, supportGroup: null, botCreatedAt: null },
   groupSettings: {},
   bans: {},
   blockedPrivateChats: [],
@@ -42,6 +46,11 @@ function createDataStore(filePath) {
       settings: { ...DEFAULT_DATA.settings, ...(parsed.settings || {}) },
     };
   }
+  data.settings.botCreatedAt ||= Date.now();
+  data.coOwners ||= [];
+  data.alliancePartners ||= [];
+  data.supportTickets ||= {};
+  data.nextSupportId ||= 1;
   fs.mkdirSync(usersDirectory, { recursive: true });
 
   function saveUserRecords() {
