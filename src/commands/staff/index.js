@@ -126,7 +126,7 @@ module.exports = (runtime) => {
             ].join('\n'),
           });
           await ctx.reply('Your join request #' + id + ' has been sent to the team.');
-        }, { privateOnly: true, allowUnregistered: true, usage: 'join <WhatsApp group invite link>' });
+        }, { privateOnly: true, allowUnregistered: true, usage: '<WhatsApp group invite link>' });
       },
     },
     {
@@ -203,7 +203,7 @@ module.exports = (runtime) => {
             ].join('\n'),
           });
           await ctx.reply('Support ticket #' + id + ' has been sent. The team will reply here.');
-        }, { privateOnly: true, allowUnregistered: true, usage: 'support <describe your problem>' });
+        }, { privateOnly: true, allowUnregistered: true, usage: '<describe your problem>' });
       },
     },
     {
