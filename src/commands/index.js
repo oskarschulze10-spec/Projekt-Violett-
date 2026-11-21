@@ -235,7 +235,7 @@ const MENU_CATEGORIES = {
     title: '🌐 COMMUNITY',
     commands: [
       ['community'], ['staffrank'], ['alliance list'], ['join <group link>'],
-      ['support <message>'], ['suggest <idea>'], ['suggestions'], ['teamlist'],
+      ['support <message>'], ['suggest <idea>'], ['suggestions'],
     ],
   },
 };
