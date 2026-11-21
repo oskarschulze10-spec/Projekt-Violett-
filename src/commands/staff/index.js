@@ -59,12 +59,26 @@ module.exports = (runtime) => {
         if (matches.has(ctx.normalizeJid(key))) delete ctx.data[field][key];
       }
     }
+    for (const account of Object.values(users)) {
+      for (const field of ['secretLover', 'secretMommy', 'secretDaddy']) {
+        if (matches.has(ctx.normalizeJid(account?.[field]))) delete account[field];
+      }
+    }
     for (const settings of Object.values(ctx.data.groupSettings || {})) {
       for (const field of ['warnings', 'mutes']) {
         for (const key of Object.keys(settings?.[field] || {})) {
           if (matches.has(ctx.normalizeJid(key))) delete settings[field][key];
         }
       }
+    }
+    for (const [id, ticket] of Object.entries(ctx.data.supportTickets || {})) {
+      if (matches.has(ctx.normalizeJid(ticket?.requester))) delete ctx.data.supportTickets[id];
+    }
+    for (const [id, request] of Object.entries(ctx.data.joinRequests || {})) {
+      if (matches.has(ctx.normalizeJid(request?.requester))) delete ctx.data.joinRequests[id];
+    }
+    for (const [id, suggestion] of Object.entries(ctx.data.suggestions || {})) {
+      if (matches.has(ctx.normalizeJid(suggestion?.author))) delete ctx.data.suggestions[id];
     }
   }
 
