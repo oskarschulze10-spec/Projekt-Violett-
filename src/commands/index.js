@@ -220,7 +220,7 @@ const MENU_CATEGORIES = {
       ['daily'], ['weekly'], ['work'], ['shop'], ['buy <item>'], ['inventory'],
       ['überweisung @user <amount>'], ['bankkonto [bank]'], ['bankeinzahlung <amount>'],
       ['bankauszahlung <amount>'], ['banktransfer @user <amount>'], ['top'],
-      ['interest'], ['deposit <amount> [days]'], ['economy'],
+      ['interest'], ['deposit <amount> [days]'], ['economy'], ['coinflip <amount>'],\n      ['slots <amount>'], ['dice <amount>'], ['roulette <colour> <amount>'],\n      ['blackjack <amount>'], ['crash <amount>'],
     ],
   },
   4: {
@@ -239,13 +239,6 @@ const MENU_CATEGORIES = {
       ['support <message>'], ['suggest <idea>'], ['suggestions'], ['teamlist'],
     ],
   },
-  8: {
-    title: '🌌 MOONLIGHT MODE',
-    commands: [
-      ['adult yes|no'], ['spicy on|off|status'], ['seduce @user'],
-      ['makeout @user'], ['private @user'], ['tease @user'], ['fantasy @user'],
-    ],
-  },
 };
 
 function isSpicyMenuVisible(context) {
@@ -259,11 +252,9 @@ function renderMenu(category, prefix = '#', context) {
     3: ['03', '💎', 'ECONOMY'],
     4: ['04', '🛡️', 'GROUP MODERATION'],
     5: ['05', '🌐', 'COMMUNITY'],
-    8: ['08', '🌌', 'MOONLIGHT MODE'],
   };
   const visibleCategories = Object.entries(MENU_CATEGORIES)
-    .filter(([number]) => (number !== '4' || requireRole(context, 'mod'))
-      && (number !== '8' || isSpicyMenuVisible(context)));
+    .filter(([number]) => number !== '4' || requireRole(context, 'mod'));
 
   if (!category) {
     return [
@@ -286,8 +277,7 @@ function renderMenu(category, prefix = '#', context) {
   }
 
   const menu = MENU_CATEGORIES[category];
-  if (!menu || (category === '4' && !requireRole(context, 'mod'))
-    || (category === '8' && !isSpicyMenuVisible(context))) {
+  if (!menu || (category === '4' && !requireRole(context, 'mod'))) {
     return 'Menu unavailable. Use ' + prefix + 'menu.';
   }
   const [id, icon, label] = menuStyle[category] || [String(category), '✦', menu.title];
@@ -334,8 +324,7 @@ async function sendInteractiveMenu(context, category) {
   const prefix = commandPrefix(context);
 
   const visibleCategories = Object.entries(MENU_CATEGORIES)
-    .filter(([number]) => (number !== '4' || requireRole(context, 'mod'))
-      && (number !== '8' || isSpicyMenuVisible(context)));
+    .filter(([number]) => number !== '4' || requireRole(context, 'mod'));
 
   let bodyText;
   let headerTitle;
@@ -347,7 +336,7 @@ async function sendInteractiveMenu(context, category) {
 
     if (!menu
       || (category === '4' && !requireRole(context, 'mod'))
-      || (category === '8' && !isSpicyMenuVisible(context))) {
+      ) {
       return;
     }
 
