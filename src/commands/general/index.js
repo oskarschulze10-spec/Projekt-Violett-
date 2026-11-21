@@ -94,7 +94,7 @@ module.exports = (runtime) => {
           '💜 COMMAND HELP\n'
           + 'Command: ' + commandPrefix(ctx) + command.names[0] + '\n'
           + 'Aliases: ' + command.names.map((name) => commandPrefix(ctx) + name).join(', ') + '\n'
-          + 'Usage: ' + commandPrefix(ctx) + (command.usage || command.names[0]) + '\n'
+          + 'Usage: ' + commandPrefix(ctx) + command.names[0] + (command.usage ? ' ' + command.usage : '') + '\n'
           + 'Info: ' + command.description
         );
       }, { allowPrivate: true, allowUnregistered: true });
