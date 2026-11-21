@@ -334,7 +334,7 @@ async function sendInteractiveMenu(context, category) {
   const prefix = commandPrefix(context);
 
   const visibleCategories = Object.entries(MENU_CATEGORIES)
-    .filter(([number]) => (number !== '7' || isCurrentOwner(context))
+    .filter(([number]) => (number !== '4' || requireRole(context, 'mod'))
       && (number !== '8' || isSpicyMenuVisible(context)));
 
   let bodyText;
@@ -346,7 +346,7 @@ async function sendInteractiveMenu(context, category) {
     const menu = MENU_CATEGORIES[category];
 
     if (!menu
-      || (category === '7' && !isCurrentOwner(context))
+      || (category === '4' && !requireRole(context, 'mod'))
       || (category === '8' && !isSpicyMenuVisible(context))) {
       return;
     }
