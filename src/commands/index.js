@@ -198,173 +198,52 @@ async function sendFunGif(context, type, text) {
 
 const MENU_CATEGORIES = {
   1: {
-    title: '👤 Account',
+    title: '👤 ACCOUNT',
     commands: [
-      ['register <Name>', 'Namen registrieren'],
-      ['dsgvo', 'Datenschutz anzeigen'],
-      ['dsgvo akzeptieren', 'Datenschutz akzeptieren'],
-      ['profile', 'Eigenes PV-Profil anzeigen'],
-      ['pb <Nummer>', 'WhatsApp-Profilbild und verfügbare Profildaten abrufen'],
-      ['bitcoin', 'Bitcoin-Guthaben anzeigen'],
-      ['account', 'Account-Übersicht anzeigen'],
-      ['privacy', 'Datenschutzstatus anzeigen'],
-      ['deleteaccount', 'Eigene Accountdaten löschen'],
-      ['usertodo add|list|done|clear', 'Persönliche Aufgaben verwalten'],
-      ['me', 'Eigene Violette-Karte anzeigen'],
+      ['register <name>'], ['dsgvo'], ['profile'], ['account'], ['privacy'],
+      ['deleteaccount'], ['usertodo add|list|done|clear'], ['me'],
     ],
   },
   2: {
-    title: '🎉 Fun-Befehle',
+    title: '✨ FUN ZONE',
     commands: [
-      ['hug @Nutzer', 'Nutzer umarmen'],
-      ['kiss @Nutzer', 'Nutzer küssen'],
-      ['aura [@Nutzer]', 'Aura-Level anzeigen'],
-      ['howgay [@Nutzer]', 'Spielerischen Prozentwert anzeigen'],
-      ['slap @Nutzer', 'Nutzer spielerisch ohrfeigen'],
-      ['pat @Nutzer', 'Nutzer den Kopf tätscheln'],
-      ['ship @Nutzer1 @Nutzer2', 'Zwei Nutzer shippen'],
-      ['cuddle @Nutzer', 'Nutzer kuscheln'],
-      ['highfive @Nutzer', 'High-Five geben'],
-      ['blush @Nutzer', 'Verlegen werden'],
-      ['wink @Nutzer', 'Mysteriös zuzwinkern'],
-      ['comfort @Nutzer', 'Nutzer trösten'],
-      ['wave @Nutzer', 'Nutzer zuwinken'],
-      ['bonk @Nutzer', 'Nutzer spielerisch bonken'],
-      ['flirt @Nutzer', 'Nutzer verspielt anflirten'],
-      ['seb [@Nutzer]', 'Harmlosen Roast über die fiktive Bot-Rivalenfigur Seb ausgeben'],
-      ['joke', 'Einen Witz erzählen'],
-      ['8ball <Frage>', 'Magische 8-Ball-Antwort'],
-      ['rate <Text>', 'Etwas spielerisch bewerten'],
-      ['secretlover @Nutzer', 'Geheimen Lover markieren'],
-      ['secretmommy @Nutzer', 'Geheime Mommy markieren'],
-      ['secretdaddy @Nutzer', 'Geheimen Daddy markieren'],
+      ['hug @user'], ['kiss @user'], ['aura [@user]'], ['howgay [@user]'],
+      ['slap @user'], ['pat @user'], ['ship @user1 @user2'], ['cuddle @user'],
+      ['highfive @user'], ['blush @user'], ['wink @user'], ['comfort @user'],
+      ['wave @user'], ['bonk @user'], ['flirt @user'], ['joke'], ['8ball <question>'],
+      ['rate <text>'],
     ],
   },
   3: {
-    title: '💼 Economy',
+    title: '💎 ECONOMY',
     commands: [
-      ['daily', 'Tägliche Bitcoin abholen'],
-      ['weekly', 'Wöchentliche Bitcoin abholen'],
-      ['work', 'Arbeiten und Bitcoin verdienen'],
-      ['shop', 'Economy-Shop anzeigen'],
-      ['buy <item>', 'Shop-Item kaufen'],
-      ['inventory', 'Inventar und Vorteile anzeigen'],
-      ['überweisung @Nutzer <Betrag>', 'Bitcoin überweisen'],
-      ['bankkonto [Bank]', 'Bankkonto eröffnen oder anzeigen'],
-      ['bankeinzahlung <Betrag>', 'Bitcoin zur Bank einzahlen'],
-      ['bankauszahlung <Betrag>', 'Bitcoin von der Bank auszahlen'],
-      ['banktransfer @Nutzer <Betrag>', 'Banküberweisung senden'],
-      ['top', 'Bitcoin-Rangliste'],
-      ['interest', 'Fällige Zinsen auszahlen'],
-      ['deposit <Betrag> [Tage]', 'Bitcoin sicher anlegen'],
-      ['economy', 'Economy-Übersicht anzeigen'],
+      ['daily'], ['weekly'], ['work'], ['shop'], ['buy <item>'], ['inventory'],
+      ['überweisung @user <amount>'], ['bankkonto [bank]'], ['bankeinzahlung <amount>'],
+      ['bankauszahlung <amount>'], ['banktransfer @user <amount>'], ['top'],
+      ['interest'], ['deposit <amount> [days]'], ['economy'],
     ],
   },
   4: {
-    title: '🎰 Casino',
+    title: '🛡️ GROUP MODERATION',
     commands: [
-      ['coinflip <Betrag>', 'Kopf oder Zahl'],
-      ['slots <Betrag>', 'Slotmaschine'],
-      ['dice <Betrag>', 'Würfel-Casino'],
-      ['roulette <rot|schwarz|grün> <Betrag>', 'Roulette spielen'],
-      ['highlow <höher|niedriger> <Betrag>', 'High-Low spielen'],
-      ['blackjack <Betrag>', 'Blackjack spielen'],
-      ['crash <Betrag>', 'Crash-Multiplikator spielen'],
-      ['baccarat <Betrag>', 'Baccarat spielen'],
-      ['lottery <Betrag>', 'Lotterie spielen'],
+      ['kick @user'], ['warn @user [reason]'], ['warnings @user'], ['clearwarns @user'],
+      ['mute @user <minutes>'], ['unmute @user'], ['antilink on|off'],
+      ['antisticker on|off'], ['promote @user'], ['demote @user'],
+      ['tagall [text]'], ['lock on|off'], ['slowmode <seconds>'], ['clear'],
     ],
   },
   5: {
-    title: '🛡️ Group Moderation',
+    title: '🌐 COMMUNITY',
     commands: [
-      ['kick @Nutzer', 'Nutzer entfernen'],
-      ['invite <Nummer>', 'Nutzer direkt hinzufügen oder per Gruppenlink einladen'],
-      ['inviteall <Nummern>', 'Mehrere ausdrücklich angegebene Nummern einladen'],
-      ['warn @Nutzer [Grund]', 'Verwarnung vergeben'],
-      ['warnings @Nutzer', 'Verwarnungen anzeigen'],
-      ['clearwarns @Nutzer', 'Verwarnungen löschen'],
-      ['mute @Nutzer <Minuten>', 'Nutzer zeitweise stummschalten'],
-      ['unmute @Nutzer', 'Stummschaltung aufheben'],
-      ['antilink on|off', 'Gruppenlinks automatisch entfernen'],
-      ['antisticker on|off', 'Sticker automatisch entfernen'],
-      ['promote @Nutzer', 'Zum Admin machen'],
-      ['demote @Nutzer', 'Adminrechte entziehen'],
-      ['selfpromote', 'Sich selbst zum Gruppenadmin machen'],
-      ['selfdemote', 'Sich selbst zum normalen Mitglied machen'],
-      ['tagall [Text]', 'Alle erwähnen'],
-      ['lock on|off', 'Gruppe sperren oder öffnen'],
-      ['slowmode <Sekunden>', 'Gruppen-Slowmode setzen'],
-      ['clear', 'Aktuelle Nachricht löschen'],
-    ],
-  },
-  6: {
-    title: '👥 Team',
-    commands: [
-      ['bc <Text>', 'Broadcast senden'],
-      ['bcgroup list|add|remove', 'Broadcast-Gruppen verwalten (nur Owner)'],
-      ['join <Gruppenlink>', 'Join-Anfrage erstellen'],
-      ['approvejoin <ID>', 'Join-Anfrage annehmen'],
-      ['rejectjoin <ID>', 'Join-Anfrage ablehnen'],
-      ['ignorebot add|remove', 'Bot per Antwort zur Filterliste hinzufügen/entfernen'],
-      ['suggest <Idee>', 'Einen neuen Befehlsvorschlag einreichen'],
-      ['suggestions', 'Offene Befehlsvorschläge anzeigen'],
-      ['teamlist', 'Teammitglieder anzeigen'],
-      ['modinfo [@Nutzer]', 'Moderatorinformationen anzeigen'],
-      ['vip set <Tage> [@Nutzer]', 'VIP für sich oder einen Nutzer vergeben (nur Mods)'],
-      ['teamhelp', 'Teamhilfe anzeigen'],
-    ],
-  },
-  7: {
-    title: '👑 Owner',
-    commands: [
-      ['addmod @Nutzer', 'Moderator ernennen (nur Owner)'],
-      ['delmod @Nutzer', 'Moderator entfernen (nur Owner)'],
-      ['addgo @Nutzer', 'GruppenOpfer (GO) mit Mod-Rechten ernennen (nur Owner)'],
-      ['delgo @Nutzer', 'GruppenOpfer (GO) entfernen (nur Owner)'],
-      ['addsupport @Nutzer', 'Support ernennen (nur Owner)'],
-      ['delsupport @Nutzer', 'Support entfernen (nur Owner)'],
-      ['prefix set <Zeichen>', 'Präfix ändern (nur Owner)'],
-      ['creategroup <Name> [| <Name> ...]', 'Gruppe erstellen oder in einer Community mehrere Untergruppen anlegen (nur Owner)'],
-      ['hub <Community> | <Gruppe 1> | <Gruppe 2>', 'Community mit Untergruppen erstellen (nur Owner)'],
-      ['communitylink <Community-ID>', 'Aktuelle Gruppe einer Community hinzufügen (nur Owner/Admin)'],
-      ['bomba', 'Alle Community-Gruppen leeren, Owner und Bot behalten (nur Owner)'],
-      ['clone <Name>', 'Aktuelle Gruppe mit denselben Mitgliedern kopieren (nur Owner/Admin)'],
-      ['promoteall', 'Alle Gruppenmitglieder zu Admins machen (nur Owner/Admin)'],
-      ['ca [@Nutzer]', 'Zielmitglied in passenden Community-Untergruppen zum Admin machen (nur Owner)'],
-      ['nuke', 'Gruppe in „NukeIncoming“ umbenennen und leeren (nur Owner/Admin)'],
-      ['groupignore on|off|status', 'Bot in einer Gruppe steuern (nur Owner)'],
-      ['tempban @Nutzer <Minuten>', 'Temporär sperren (nur Owner)'],
-      ['ban @Nutzer', 'Unbefristet sperren (nur Owner)'],
-      ['unban @Nutzer', 'Sperre aufheben (nur Owner)'],
-      ['block <Nummer>', 'Privatchat und private Befehle blockieren (nur Owner)'],
-      ['unblock <Nummer>', 'Privatchat wieder freigeben (nur Owner)'],
-      ['give @Nutzer <Betrag>', 'Bitcoin vergeben (nur Owner)'],
-      ['welcome @Nutzer <Name>', 'Account direkt einrichten (nur Owner)'],
-      ['botstats', 'Bot-Statistiken anzeigen'],
-      ['reload', 'Botdaten neu laden'],
-      ['maintenance on|off|status', 'Wartungsmodus (nur Owner)'],
-      ['mt add|list|remove <command>', 'Befehle in Wartung setzen und verwalten (nur Owner)'],
-      ['suggestion <ID> yes|no', 'Befehlsvorschlag annehmen oder ablehnen (nur Owner)'],
-      ['alias add|remove|list', 'Eigene Kurzbefehle verwalten (nur Owner)'],
-      ['setdesign <Befehl> <Text>', 'Standardantwort eines Befehls ersetzen (nur Owner)'],
-      ['resetdesign <Befehl>', 'Eigenes Antwortdesign zurücksetzen (nur Owner)'],
+      ['community'], ['staffrank'], ['alliance list'], ['join <group link>'],
+      ['support <message>'], ['suggest <idea>'], ['suggestions'], ['teamlist'],
     ],
   },
   8: {
-    title: '🌌 Spicy-Modus',
+    title: '🌌 MOONLIGHT MODE',
     commands: [
-      ['adult yes', '18+-Nutzung für dich bestätigen'],
-      ['adult no', '18+-Bestätigung zurücknehmen'],
-      ['spicy on', 'Spicy in dieser Gruppe aktivieren (Owner/Mods)'],
-      ['spicy off', 'Spicy in dieser Gruppe deaktivieren (Owner/Mods)'],
-      ['spicy status', 'Status des Spicy-Modus anzeigen'],
-      ['seduce @Nutzer', 'Nicht-grafisch verführen'],
-      ['makeout @Nutzer', 'Intensiven Kuss andeuten'],
-      ['private @Nutzer', 'Privaten Moment andeuten'],
-      ['fuck @Nutzer', 'Diskrete 18+-Andeutung'],
-      ['tease @Nutzer', 'Nicht-grafisch necken'],
-      ['fantasy @Nutzer', 'Nicht-grafische Fantasie teilen'],
-      ['spicyrate <Text>', 'Spicy-Inhalt bewerten'],
+      ['adult yes|no'], ['spicy on|off|status'], ['seduce @user'],
+      ['makeout @user'], ['private @user'], ['tease @user'], ['fantasy @user'],
     ],
   },
 };
@@ -375,65 +254,55 @@ function isSpicyMenuVisible(context) {
 
 function renderMenu(category, prefix = '#', context) {
   const menuStyle = {
-    1: ['01', '👤', 'USER PROFILE', 'Account, Datenschutz und persönliche Einstellungen'],
-    2: ['02', '✨', 'FUN ZONE', 'Community-Spiele und Unterhaltung'],
-    3: ['03', '💎', 'ECONOMY SYSTEM', 'Bitcoin, Shop, Bank und Belohnungen'],
-    4: ['04', '🎰', 'NEON CASINO', 'Spiele und virtuelle Einsätze'],
-    5: ['05', '🛡️', 'GROUP SECURITY', 'Moderation, Schutz und Gruppenverwaltung'],
-    6: ['06', '👥', 'TEAM & COMMUNITY', 'Support, Moderatoren und Community'],
-    7: ['07', '👑', 'OWNER CONTROL', 'Systemverwaltung und Owner-Werkzeuge'],
-    8: ['08', '🌌', 'MOONLIGHT MODE', 'Zusätzliche optionale Funktionen'],
+    1: ['01', '👤', 'ACCOUNT'],
+    2: ['02', '✨', 'FUN ZONE'],
+    3: ['03', '💎', 'ECONOMY'],
+    4: ['04', '🛡️', 'GROUP MODERATION'],
+    5: ['05', '🌐', 'COMMUNITY'],
+    8: ['08', '🌌', 'MOONLIGHT MODE'],
   };
   const visibleCategories = Object.entries(MENU_CATEGORIES)
-    .filter(([number]) => (number !== '7' || isCurrentOwner(context))
-      && (number !== '8' || isSpicyMenuVisible(context)));
+    .filter(([number]) => number !== '8' || isSpicyMenuVisible(context));
 
   if (!category) {
     return [
       '╭━━━━━━━━━━━━━━━━━━━━━━━━━━━━╮',
       '       💜 PROJECT VIOLETTÉ',
-      '          N E X U S  V7',
+      '             NEXUS V8',
       '╰━━━━━━━━━━━━━━━━━━━━━━━━━━━━╯',
       '',
-      '  ◈ CONTROL CENTER  •  SYSTEM ONLINE',
-      '  Wähle ein Modul, um fortzufahren.',
+      '  ◈ CONTROL CENTER · ONLINE',
       '',
       ...visibleCategories.map(([number, menu]) => {
-        const [id, icon, label, description] = menuStyle[number] || [number, '✦', menu.title, ''];
-        return '  ┏ ' + id + '  ' + icon + '  ' + label + '\n  ┗ ' + prefix + 'menu' + number + ' · ' + description;
+        const [id, icon, label] = menuStyle[number] || [number, '✦', menu.title];
+        return '  ┏ ' + id + '  ' + icon + '  ' + label + '\\n  ┗ ' + prefix + 'menu' + number;
       }),
       '',
       '  ────────────────────────────',
-      '  ✦ ' + prefix + 'commands  Alle Befehle',
-      '  ✦ DESIGN BY 7  ·  POWERED BY VIOLETTÉ',
-    ].join('\n');
+      '  ✦ ' + prefix + 'commands',
+      '  ✦ DESIGN BY 7 · POWERED BY VIOLETTÉ',
+    ].join('\\n');
   }
 
   const menu = MENU_CATEGORIES[category];
-  if (!menu
-    || (category === '7' && !isCurrentOwner(context))
-    || (category === '8' && !isSpicyMenuVisible(context))) {
-    return 'Dieses Menü gibt es nicht. Nutze ' + prefix + 'menu für die Übersicht.';
+  if (!menu || (category === '8' && !isSpicyMenuVisible(context))) {
+    return 'Menu unavailable. Use ' + prefix + 'menu.';
   }
-
-  const [id, icon, label, description] = menuStyle[category] || [String(category), '✦', menu.title, ''];
+  const [id, icon, label] = menuStyle[category] || [String(category), '✦', menu.title];
   return [
     '╭━━━━━━━━━━━━━━━━━━━━━━━━━━━━╮',
     '       ' + icon + ' ' + label,
     '             MODULE ' + id,
     '╰━━━━━━━━━━━━━━━━━━━━━━━━━━━━╯',
     '',
-    '  ' + description,
-    '  ' + menu.commands.length + ' verfügbare Befehle',
-    '',
-    ...menu.commands.map(([command, commandDescription], index) => (
-      '  ' + String(index + 1).padStart(2, '0') + '  ' + prefix + command + '\n      └ ' + commandDescription
+    ...menu.commands.map(([command], index) => (
+      '  ' + String(index + 1).padStart(2, '0') + '  ' + prefix + command
     )),
     '',
     '  ────────────────────────────',
-    '  ◀ ' + prefix + 'menu  ZURÜCK ZUM NEXUS',
-    '  ◈ DESIGN BY 7  ·  PROJECT VIOLETTÉ',
-  ].join('\n');
+    '  ◀ ' + prefix + 'menu',
+    '  ◈ DESIGN BY 7 · PROJECT VIOLETTÉ',
+  ].join('\\n');
 }
 
 async function sendMenu(context, category) {
@@ -444,6 +313,7 @@ async function sendMenu(context, category) {
   );
   if (category) {
     await context.sock.sendMessage(context.jid, { text });
+    await sendInteractiveMenu(context, category);
     return;
   }
   try {
