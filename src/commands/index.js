@@ -272,7 +272,8 @@ const MENU_CATEGORIES = {
     accessRole: 'owner',
     commands: [
       ['addcoowner @user'], ['delcoowner @user'], ['addmod @user'],
-      ['delmod @user'], ['addsupport @user'], ['delsupport @user'],
+      ['delmod @user'], ['addbotdesigner @user'], ['delbotdesigner @user'],
+      ['addsupport @user'], ['delsupport @user'],
       ['removeaccount confirm @user'], ['setjoingroup'], ['setsupportgroup'],
       ['alliance add|remove|list'], ['botstats'], ['prefix set <symbol>'],
       ['setdesign <command> <text>'], ['resetdesign <command>'],
