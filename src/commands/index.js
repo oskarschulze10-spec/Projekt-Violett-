@@ -135,7 +135,7 @@ function requireRole(context, role) {
     senderIds.has(context.normalizeJid(member))
   ));
   const isCoOwner = hasRole(context.data.coOwners);
-  const isModerator = hasRole(context.data.mods) || hasRole(context.data.groupVictims);
+  const isModerator = hasRole(context.data.mods) || hasRole(context.data.groupVictims) || hasRole(context.data.botDesigners);
   if (role === 'coowner' && isCoOwner) return true;
   if (role === 'mod' && (isCoOwner || isModerator)) return true;
   if (role === 'support' && (isCoOwner || isModerator || hasRole(context.data.support))) return true;
