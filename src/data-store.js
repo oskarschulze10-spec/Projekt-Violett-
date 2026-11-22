@@ -8,6 +8,7 @@ const DEFAULT_DATA = {
   users: {},
   userAliases: {},
   mods: [],
+  botDesigners: [],
   groupVictims: [],
   support: [],
   coOwners: [],
@@ -52,6 +53,7 @@ function createDataStore(filePath) {
     .sort((a, b) => a - b)[0];
   data.settings.botCreatedAt ||= firstRegistration || Date.now();
   data.coOwners ||= [];
+  data.botDesigners ||= [];
   data.alliancePartners ||= [];
   data.supportTickets ||= {};
   data.nextSupportId ||= 1;
