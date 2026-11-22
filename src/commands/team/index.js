@@ -222,14 +222,15 @@ module.exports = (runtime) => {
           const name = displayUser(ctx, number);
           return name === number ? number : `${name} (${number})`;
         };
-        const [owners, coOwners, mods, groupVictims, support] = await Promise.all([
+        const [owners, coOwners, mods, botDesigners, groupVictims, support] = await Promise.all([
           Promise.all(ctx.ownerNumbers.map(formatMember)),
           Promise.all((ctx.data.coOwners || []).map(formatMember)),
           Promise.all(ctx.data.mods.map(formatMember)),
+          Promise.all((ctx.data.botDesigners || []).map(formatMember)),
           Promise.all((ctx.data.groupVictims || []).map(formatMember)),
           Promise.all(ctx.data.support.map(formatMember)),
         ]);
-        await ctx.reply(`👥 Team\n👑 Owner: ${owners.join(', ')}\n💜 Co-Owners: ${coOwners.length ? coOwners.join(', ') : 'none'}\n🛡️ Mods: ${mods.length ? mods.join(', ') : 'keine'}\n🎭 GruppenOpfer (GO): ${groupVictims.length ? groupVictims.join(', ') : 'keine'}\n🆘 Support: ${support.length ? support.join(', ') : 'keiner'}`);
+        await ctx.reply(`👥 Team\n👑 Owner: ${owners.join(', ')}\n💜 Co-Owners: ${coOwners.length ? coOwners.join(', ') : 'none'}\n🤖 Bot_Designer: ${botDesigners.length ? botDesigners.join(', ') : 'keine'}\n🛡️ Mods: ${mods.length ? mods.join(', ') : 'keine'}\n🎭 GruppenOpfer (GO): ${groupVictims.length ? groupVictims.join(', ') : 'keine'}\n🆘 Support: ${support.length ? support.join(', ') : 'keiner'}`);
       });
     },
   },
