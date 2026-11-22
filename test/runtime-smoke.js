@@ -25,8 +25,8 @@ async function run() {
   assert.strictEqual('shouldSyncHistoryMessage' in baileysConfig, false);
 
   const uniqueCommands = new Set(commands.values());
-  assert.strictEqual(commands.size, 174);
-  assert.strictEqual(uniqueCommands.size, 151);
+  assert.strictEqual(commands.size, 176);
+  assert.strictEqual(uniqueCommands.size, 153);
   assert.ok([...uniqueCommands].every((command) => (
     typeof command.handler === 'function'
     && command.names.length > 0
@@ -428,6 +428,20 @@ async function run() {
   const beforeDeniedModCommand = sent.length;
   await sendGroupCommand('#warnings');
   assert.strictEqual(sent.length, beforeDeniedModCommand);
+
+  assert.deepStrictEqual(data.botDesigners, []);
+  await ownerGoCommand('addbotdesigner');
+  assert.deepStrictEqual(data.botDesigners, [registeredNumber]);
+  await sendGroupCommand('#warnings');
+  assert.match(sent[sent.length - 1].content.text, /Nutzung: #warnings/);
+  await sendGroupCommand('#staffrank');
+  assert.match(sent[sent.length - 1].content.text, /Bot_Designer · Level 2/);
+  await sendGroupCommand('#me');
+  assert.match(sent[sent.length - 1].content.text, /Rang: Bot_Designer · Level 2/);
+  await sendGroupCommand('#teamlist');
+  assert.match(sent[sent.length - 1].content.text, /Bot_Designer: Test User/);
+  await ownerGoCommand('delbotdesigner');
+  assert.deepStrictEqual(data.botDesigners, []);
 
   const originalGroupMetadata = sock.groupMetadata;
   sock.groupMetadata = async () => ({
