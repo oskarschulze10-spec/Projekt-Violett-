@@ -315,6 +315,7 @@ module.exports = (runtime) => {
           const number = ids[1] || ids[0];
           if (!ctx.data.coOwners.some((entry) => ids.includes(ctx.normalizeJid(entry)))) ctx.data.coOwners.push(number);
           ctx.data.mods = (ctx.data.mods || []).filter((entry) => !ids.includes(ctx.normalizeJid(entry)));
+          ctx.data.botDesigners = (ctx.data.botDesigners || []).filter((entry) => !ids.includes(ctx.normalizeJid(entry)));
           ctx.data.support = (ctx.data.support || []).filter((entry) => !ids.includes(ctx.normalizeJid(entry)));
           ctx.data.groupVictims = (ctx.data.groupVictims || []).filter((entry) => !ids.includes(ctx.normalizeJid(entry)));
           ctx.saveData();
