@@ -242,10 +242,11 @@ module.exports = (runtime) => {
         if (!requestedTarget) return ctx.reply(`Nutzung: ${commandPrefix(ctx)}modinfo [@Nutzer]`);
         const target = await resolvePhoneNumber(ctx, requestedTarget);
         const mods = await Promise.all(ctx.data.mods.map((number) => resolvePhoneNumber(ctx, number)));
+        const botDesigners = await Promise.all((ctx.data.botDesigners || []).map((number) => resolvePhoneNumber(ctx, number)));
         const groupVictims = await Promise.all((ctx.data.groupVictims || []).map((number) => resolvePhoneNumber(ctx, number)));
         const support = await Promise.all(ctx.data.support.map((number) => resolvePhoneNumber(ctx, number)));
         const coOwners = await Promise.all((ctx.data.coOwners || []).map((number) => resolvePhoneNumber(ctx, number)));
-        await ctx.reply(`🛡️ ${displayName(ctx, target)}\nRolle: ${isOwner(ctx, target) ? 'Owner' : coOwners.includes(target) ? 'Co-Owner · Level 3' : groupVictims.includes(target) ? 'GruppenOpfer (GO)' : mods.includes(target) ? 'Moderator' : support.includes(target) ? 'Support' : 'Keine Teamrolle'}`);
+        await ctx.reply(`🛡️ ${displayName(ctx, target)}\nRolle: ${isOwner(ctx, target) ? 'Owner' : coOwners.includes(target) ? 'Co-Owner · Level 3' : botDesigners.includes(target) ? 'Bot_Designer · Level 2' : groupVictims.includes(target) ? 'GruppenOpfer (GO)' : mods.includes(target) ? 'Moderator · Level 2' : support.includes(target) ? 'Support · Level 1' : 'Keine Teamrolle'}`);
       });
     },
   },
