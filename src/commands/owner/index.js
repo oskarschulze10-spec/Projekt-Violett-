@@ -609,6 +609,47 @@ module.exports = (runtime) => {
     },
   },
   {
+    order: 98150,
+    register() {
+      register(['addbotdesigner'], 'Bot_Designer mit Moderatorrechten ernennen (nur Owner)', async (ctx) => {
+        if (!requireRole(ctx, 'owner')) return ctx.reply('Nur der Owner darf Bot_Designer ernennen.');
+        const target = mentionJids(ctx)[0];
+        if (!target) return ctx.reply(`Erwähne die Person: ${commandPrefix(ctx)}addbotdesigner @Nutzer`);
+        const targetId = ctx.normalizeJid(target);
+        const number = await resolvePhoneNumber(ctx, target) || targetId;
+        const identifiers = new Set([targetId, number]);
+        ctx.data.botDesigners ||= [];
+        if (!ctx.data.botDesigners.some((entry) => identifiers.has(ctx.normalizeJid(entry)))) {
+          ctx.data.botDesigners.push(number);
+        }
+        ctx.data.mods = (ctx.data.mods || []).filter((entry) => !identifiers.has(ctx.normalizeJid(entry)));
+        ctx.data.groupVictims = (ctx.data.groupVictims || []).filter((entry) => !identifiers.has(ctx.normalizeJid(entry)));
+        ctx.data.coOwners = (ctx.data.coOwners || []).filter((entry) => !identifiers.has(ctx.normalizeJid(entry)));
+        ctx.data.support = (ctx.data.support || []).filter((entry) => !identifiers.has(ctx.normalizeJid(entry)));
+        ctx.saveData();
+        await ctx.reply('🤖 Bot_Designer mit Moderatorrechten hinzugefügt.');
+      });
+    },
+  },
+  {
+    order: 98160,
+    register() {
+      register(['delbotdesigner'], 'Bot_Designer-Rang entfernen (nur Owner)', async (ctx) => {
+        if (!requireRole(ctx, 'owner')) return ctx.reply('Nur der Owner darf Bot_Designer entfernen.');
+        const target = mentionJids(ctx)[0];
+        if (!target) return ctx.reply(`Erwähne die Person: ${commandPrefix(ctx)}delbotdesigner @Nutzer`);
+        const identifiers = new Set([
+          ctx.normalizeJid(target),
+          await resolvePhoneNumber(ctx, target),
+        ].filter(Boolean));
+        ctx.data.botDesigners = (ctx.data.botDesigners || [])
+          .filter((entry) => !identifiers.has(ctx.normalizeJid(entry)));
+        ctx.saveData();
+        await ctx.reply('🤖 Bot_Designer-Rang entfernt.');
+      });
+    },
+  },
+  {
     order: 98800,
     register() {
       register(['addgo'], 'GruppenOpfer (GO) mit Moderatorrechten ernennen (nur Owner)', async (ctx) => {
