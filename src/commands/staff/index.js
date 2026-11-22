@@ -51,7 +51,7 @@ module.exports = (runtime) => {
         delete aliases[alias];
       }
     }
-    for (const field of ['mods', 'support', 'coOwners', 'groupVictims', 'blockedPrivateChats', 'ignoredBots']) {
+    for (const field of ['mods', 'botDesigners', 'support', 'coOwners', 'groupVictims', 'blockedPrivateChats', 'ignoredBots']) {
       ctx.data[field] = (ctx.data[field] || []).filter((entry) => !matches.has(ctx.normalizeJid(entry)));
     }
     for (const field of ['userTodos', 'bans']) {
