@@ -246,9 +246,10 @@ module.exports = (runtime) => {
         const rank = isOwner(ctx, account.phoneNumber || ctx.sender)
           ? 'Owner'
           : hasRole(ctx.data.coOwners) ? 'Co-Owner · Level 3'
-            : hasRole(ctx.data.groupVictims) || hasRole(ctx.data.mods) ? 'Moderator · Level 2'
-              : hasRole(ctx.data.support) ? 'Supporter · Level 1'
-                : 'Member';
+            : hasRole(ctx.data.botDesigners) ? 'Bot_Designer · Level 2'
+              : hasRole(ctx.data.groupVictims) || hasRole(ctx.data.mods) ? 'Moderator · Level 2'
+                : hasRole(ctx.data.support) ? 'Supporter · Level 1'
+                  : 'Member';
         const vipActive = isVip(account);
         const vipDays = vipActive ? Math.ceil((account.vipUntil - Date.now()) / 86400000) : 0;
         const registeredAt = account.registeredAt && Number.isFinite(Date.parse(account.registeredAt))
