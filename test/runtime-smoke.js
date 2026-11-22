@@ -25,7 +25,7 @@ async function run() {
   assert.strictEqual('shouldSyncHistoryMessage' in baileysConfig, false);
 
   const uniqueCommands = new Set(commands.values());
-  assert.strictEqual(commands.size, 173);
+  assert.strictEqual(commands.size, 174);
   assert.strictEqual(uniqueCommands.size, 151);
   assert.ok([...uniqueCommands].every((command) => (
     typeof command.handler === 'function'
