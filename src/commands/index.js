@@ -238,7 +238,52 @@ const MENU_CATEGORIES = {
       ['support <message>'], ['suggest <idea>'], ['suggestions'],
     ],
   },
+  6: {
+    title: '🎧 SUPPORTER MENU',
+    accessRole: 'support',
+    commands: [
+      ['supportreply <ticket ID> <message>'], ['supportclose <ticket ID>'],
+      ['teamlist'], ['modinfo'], ['teamhelp'],
+    ],
+  },
+  7: {
+    title: '🛡️ MODERATOR MENU',
+    accessRole: 'mod',
+    commands: [
+      ['warn @user [reason]'], ['warnings @user'], ['clearwarns @user'],
+      ['mute @user <minutes>'], ['unmute @user'], ['kick @user'],
+      ['antilink on|off'], ['antisticker on|off'], ['lock on|off'],
+      ['slowmode <seconds>'], ['tagall [text]'], ['approvejoin <id>'],
+      ['rejectjoin <id>'], ['teamlist'], ['modinfo'],
+    ],
+  },
+  8: {
+    title: '👑 CO-OWNER MENU',
+    accessRole: 'coowner',
+    commands: [
+      ['modmenu'], ['supportmenu'], ['community'], ['alliance add|remove|list'],
+      ['approvejoin <id>'], ['rejectjoin <id>'], ['setjoingroup'],
+      ['setsupportgroup'],
+    ],
+  },
+  9: {
+    title: '💜 OWNER MENU',
+    accessRole: 'owner',
+    commands: [
+      ['addcoowner @user'], ['delcoowner @user'], ['addmod @user'],
+      ['delmod @user'], ['addsupport @user'], ['delsupport @user'],
+      ['removeaccount confirm @user'], ['setjoingroup'], ['setsupportgroup'],
+      ['alliance add|remove|list'], ['botstats'], ['prefix set <symbol>'],
+      ['setdesign <command> <text>'], ['resetdesign <command>'],
+      ['maintenance'], ['reload'],
+    ],
+  },
 };
+
+function canAccessMenu(context, category) {
+  const menu = MENU_CATEGORIES[category];
+  return Boolean(menu && (!menu.accessRole || requireRole(context, menu.accessRole)));
+}
 
 function isSpicyMenuVisible(context) {
   return Boolean(context?.data?.spicyGroups?.[context.jid]);
@@ -253,7 +298,7 @@ function renderMenu(category, prefix = '#', context) {
     5: ['05', '🌐', 'COMMUNITY'],
   };
   const visibleCategories = Object.entries(MENU_CATEGORIES)
-    .filter(([number]) => number !== '4' || requireRole(context, 'mod'));
+    .filter(([number]) => canAccessMenu(context, number));
 
   if (!category) {
     return [
@@ -276,7 +321,7 @@ function renderMenu(category, prefix = '#', context) {
   }
 
   const menu = MENU_CATEGORIES[category];
-  if (!menu || (category === '4' && !requireRole(context, 'mod'))) {
+  if (!menu || !canAccessMenu(context, category)) {
     return 'Menu unavailable. Use ' + prefix + 'menu.';
   }
   const [id, icon, label] = menuStyle[category] || [String(category), '✦', menu.title];
@@ -323,7 +368,7 @@ async function sendInteractiveMenu(context, category) {
   const prefix = commandPrefix(context);
 
   const visibleCategories = Object.entries(MENU_CATEGORIES)
-    .filter(([number]) => number !== '4' || requireRole(context, 'mod'));
+    .filter(([number]) => canAccessMenu(context, number));
 
   let bodyText;
   let headerTitle;
@@ -333,9 +378,7 @@ async function sendInteractiveMenu(context, category) {
   if (category) {
     const menu = MENU_CATEGORIES[category];
 
-    if (!menu
-      || (category === '4' && !requireRole(context, 'mod'))
-      ) {
+    if (!menu || !canAccessMenu(context, category)) {
       return;
     }
 
