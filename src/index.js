@@ -235,6 +235,59 @@ function messageTimestampMs(message) {
   return timestamp < 1e12 ? timestamp * 1000 : timestamp;
 }
 
+async function enforceGroupSlowmode({
+  sock, message, data, sender, isOwner, prefix, text, saveData, logger,
+}) {
+  const jid = message?.key?.remoteJid;
+  if (!jid?.endsWith('@g.us') || message.key.fromMe || isOwner) return false;
+  if (String(text || '').trimStart().startsWith(prefix)) return false;
+
+  const settings = data.groupSettings?.[jid];
+  const seconds = Number(settings?.slowmode) || 0;
+  if (seconds <= 0) return false;
+
+  const normalizedSender = normalizedJid(sender);
+  const privilegedNumbers = [
+    ...(Array.isArray(data.mods) ? data.mods : []),
+    ...(Array.isArray(data.coOwners) ? data.coOwners : []),
+  ].map(normalizedJid);
+  if (privilegedNumbers.includes(normalizedSender)) return false;
+
+  const participantIds = [
+    message.key.participant,
+    message.key.participantAlt,
+  ].filter(Boolean);
+  if (participantIds.length) {
+    try {
+      const metadata = await sock.groupMetadata(jid);
+      const member = metadata.participants?.find((participant) => (
+        participantIds.some((id) => id === participant.id
+          || normalizedJid(id) === normalizedJid(participant.id))
+      ));
+      if (member?.admin) return false;
+    } catch (error) {
+      logger?.warn?.({ err: error, jid }, 'Could not check group admin status for slowmode');
+    }
+  }
+
+  settings.slowmodeUsers ||= {};
+  const now = Date.now();
+  const lastMessageAt = Number(settings.slowmodeUsers[normalizedSender]) || 0;
+  if (lastMessageAt && now - lastMessageAt < seconds * 1000) {
+    try {
+      await sock.sendMessage(jid, { delete: message.key });
+      return true;
+    } catch (error) {
+      logger?.warn?.({ err: error, jid, sender: normalizedSender }, 'Could not delete a slowmode message');
+      return false;
+    }
+  }
+
+  settings.slowmodeUsers[normalizedSender] = now;
+  saveData();
+  return false;
+}
+
 function commandFromText(text, prefix) {
   const value = String(text || '').trim();
   if (!value.startsWith(prefix)) return null;
@@ -329,6 +382,9 @@ async function dispatchMessage({
 
   const prefix = data.settings.prefix || config.prefix;
   const text = messageText(message);
+  if (await enforceGroupSlowmode({
+    sock, message, data, sender, isOwner, prefix, text, saveData, logger,
+  })) return true;
   if (!String(text).trimStart().startsWith(prefix)) return false;
   if (isGroup && data.groupIgnore[message.key.remoteJid] && !isOwner) return false;
   if (!isGroup && data.blockedPrivateChats.includes(sender) && !isOwner) return false;
@@ -559,6 +615,7 @@ if (require.main === module) {
 
 module.exports = {
   commandFromText,
+  enforceGroupSlowmode,
   dispatchMessage,
   assertAuthAccount,
   resetBotAuth,
