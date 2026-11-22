@@ -334,12 +334,17 @@ module.exports = (runtime) => {
       register(['slowmode'], 'Gruppen-Slowmode setzen', async (ctx) => {
         if (!requireRole(ctx, 'mod') || !requireGroup(ctx)) return;
         const seconds = Number(ctx.args[0] || 0);
-        if (!Number.isInteger(seconds) || seconds < 0 || seconds > 3600) return ctx.reply(`Nutzung: ${commandPrefix(ctx)}slowmode <0–3600 Sekunden>`);
+        if (!Number.isInteger(seconds) || seconds < 0 || seconds > 3600) {
+          return ctx.reply(`Nutzung: ${commandPrefix(ctx)}slowmode <0–3600 Sekunden>`);
+        }
+        if (seconds > 0 && !(await requireBotAdmin(ctx))) return;
         const settings = groupSettings(ctx);
         settings.slowmode = seconds;
         settings.slowmodeUsers = {};
         ctx.saveData();
-        await ctx.reply(seconds ? `🐢 Slowmode auf ${seconds} Sekunden gesetzt.` : '🐇 Slowmode deaktiviert.');
+        await ctx.reply(seconds
+          ? `🐢 Slowmode auf ${seconds} Sekunden gesetzt. Normale Mitglieder können nur alle ${seconds} Sekunden schreiben; Bot-Befehle und Teammitglieder sind ausgenommen.`
+          : '🐇 Slowmode deaktiviert.');
       });
     },
   },
