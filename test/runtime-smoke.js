@@ -4,6 +4,7 @@ const os = require('os');
 const path = require('path');
 const {
   commandFromText,
+  enforceGroupSlowmode,
   dispatchMessage,
   assertAuthAccount,
   resetBotAuth,
@@ -472,6 +473,23 @@ async function run() {
   await sendGroupCommand('#ping');
   assert.match(sent[sent.length - 1].content.text, /Pong!/);
 
+  await dispatchMessage({
+    ...common,
+    message: {
+      key: { remoteJid: '491701234567@s.whatsapp.net', fromMe: false },
+      message: { conversation: '#design daily Alias design response' },
+    },
+  });
+  await sendGroupCommand('#daily');
+  assert.strictEqual(sent[sent.length - 1].content.text, 'Alias design response');
+  await dispatchMessage({
+    ...common,
+    message: {
+      key: { remoteJid: '491701234567@s.whatsapp.net', fromMe: false },
+      message: { conversation: '#resetdesign daily' },
+    },
+  });
+
   const bitcoinBeforeReward = data.users[registeredNumber].bitcoin;
   await dispatchMessage({
     ...common,
@@ -603,6 +621,34 @@ async function run() {
   assert.match(sent[sent.length - 1].content.text, /Gruppenaktion verweigert \(403\)/);
   assert.match(sent[sent.length - 1].content.text, /Owner-Rolle im Bot verleiht keine WhatsApp-Adminrechte/);
 
+  const slowGroup = '120363499999999999@g.us';
+  data.groupSettings[slowGroup] = { slowmode: 10, slowmodeUsers: {} };
+  const slowDeletes = [];
+  const slowSock = {
+    ...sock,
+    sendMessage: async (jid, content) => {
+      if (content.delete) slowDeletes.push({ jid, content });
+      else sent.push({ jid, content });
+    },
+  };
+  const slowMessage = {
+    key: {
+      remoteJid: slowGroup,
+      participant: '222222222:9@lid',
+      participantAlt: '222222222@s.whatsapp.net',
+      fromMe: false,
+    },
+    message: { conversation: 'ordinary message' },
+  };
+  assert.strictEqual(await enforceGroupSlowmode({
+    sock: slowSock, message: slowMessage, data, sender: '222222222',
+    isOwner: false, prefix: '#', text: 'ordinary message', saveData() {},
+  }), false);
+  assert.strictEqual(await enforceGroupSlowmode({
+    sock: slowSock, message: slowMessage, data, sender: '222222222',
+    isOwner: false, prefix: '#', text: 'another message', saveData() {},
+  }), true);
+  assert.strictEqual(slowDeletes.length, 1);
   console.log('Bot runtime smoke tests passed.');
 }
 
