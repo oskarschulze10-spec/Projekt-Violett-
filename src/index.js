@@ -249,6 +249,7 @@ async function enforceGroupSlowmode({
   const normalizedSender = normalizedJid(sender);
   const privilegedNumbers = [
     ...(Array.isArray(data.mods) ? data.mods : []),
+    ...(Array.isArray(data.botDesigners) ? data.botDesigners : []),
     ...(Array.isArray(data.coOwners) ? data.coOwners : []),
   ].map(normalizedJid);
   if (privilegedNumbers.includes(normalizedSender)) return false;
