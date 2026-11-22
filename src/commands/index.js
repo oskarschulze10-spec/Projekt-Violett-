@@ -224,6 +224,7 @@ const MENU_CATEGORIES = {
   },
   4: {
     title: '🛡️ GROUP MODERATION',
+    accessRole: 'mod',
     commands: [
       ['kick @user'], ['warn @user [reason]'], ['warnings @user'], ['clearwarns @user'],
       ['mute @user <minutes>'], ['unmute @user'], ['antilink on|off'],
