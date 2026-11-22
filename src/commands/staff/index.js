@@ -414,8 +414,9 @@ module.exports = (runtime) => {
           const has = (list) => (list || []).some((entry) => ctx.normalizeJid(entry) === id);
           const rank = isOwner(ctx, id) ? 'Owner'
             : has(ctx.data.coOwners) ? 'Co-Owner · Level 3'
-              : has(ctx.data.mods) || has(ctx.data.groupVictims) ? 'Moderator · Level 2'
-                : has(ctx.data.support) ? 'Supporter · Level 1' : 'Member';
+              : has(ctx.data.botDesigners) ? 'Bot_Designer · Level 2'
+                : has(ctx.data.mods) || has(ctx.data.groupVictims) ? 'Moderator · Level 2'
+                  : has(ctx.data.support) ? 'Supporter · Level 1' : 'Member';
           await ctx.reply('💜 VIOLETTÉ STAFF RANK\n' + rank);
         }, { allowPrivate: true, allowUnregistered: true });
       },
