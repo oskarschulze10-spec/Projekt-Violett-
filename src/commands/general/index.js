@@ -135,11 +135,14 @@ module.exports = (runtime) => {
     register() {
       for (const [number, menu] of Object.entries(MENU_CATEGORIES)) {
         register([`menu${number}`], `${menu.title} anzeigen`, async (ctx) => {
-          if (number === '4' && !requireRole(ctx, 'mod')) {
-            return ctx.reply('This menu is only available to moderators and above.');
-          }
-          if (number === '7' && !isCurrentOwner(ctx)) {
-            return ctx.reply('🔒 Dieses Owner-Menü ist ausschließlich für den Owner sichtbar.');
+          if (menu.accessRole && !requireRole(ctx, menu.accessRole)) {
+            const accessLabel = {
+              support: 'supporters and above',
+              mod: 'moderators and above',
+              coowner: 'co-owners and the owner',
+              owner: 'the owner only',
+            }[menu.accessRole] || 'authorized staff';
+            return ctx.reply('🔒 This menu is only available to ' + accessLabel + '.');
           }
           return ctx.sendMenu(number);
         }, { allowPrivate: true, allowUnregistered: true });
