@@ -793,7 +793,7 @@ module.exports = (runtime) => {
   {
     order: 114100,
     register() {
-      register(['setdesign'], 'Antwortdesign eines Befehls festlegen (nur Owner)', async (ctx) => {
+      register(['setdesign', 'design'], 'Antwortdesign eines Befehls festlegen (nur Owner)', async (ctx) => {
         if (!requireRole(ctx, 'owner')) return ctx.reply('Nur der Owner darf Befehlsdesigns ändern.');
         const targetName = (ctx.args[0] || '').toLowerCase().replace(/^#/, '');
         const targetCommand = commands.get(targetName);
