@@ -7,8 +7,7 @@ const { promisify } = require('util');
 
 const execFileAsync = promisify(execFile);
 const ROOT = path.resolve(__dirname, '../../..');
-const REPOSITORY = 'oskarschulze10-spec/Projekt-Violett-';
-const RELEASE_URL = 'https://api.github.com/repos/' + REPOSITORY + '/releases/latest';
+const UPDATE_BRANCH = 'feature/stable-update-system';
 const RESTART_EXIT_CODE = 75;
 
 async function run(file, args, options = {}) {
@@ -29,47 +28,9 @@ function npm(args) {
   return run(executable, args, { shell: process.platform === 'win32' });
 }
 
-async function getLatestStableRelease() {
-  const response = await fetch(RELEASE_URL, {
-    headers: {
-      Accept: 'application/vnd.github+json',
-      'X-GitHub-Api-Version': '2022-11-28',
-      'User-Agent': 'Violette-Stable-Updater',
-    },
-    signal: AbortSignal.timeout(15000),
-  });
-
-  if (response.status === 404) return null;
-  if (!response.ok) {
-    throw new Error('GitHub antwortet mit HTTP ' + response.status + '.');
-  }
-
-  const release = await response.json();
-  if (release.draft || release.prerelease || !release.tag_name) return null;
-  if (!/^v?\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/.test(release.tag_name)) {
-    throw new Error('Das Release besitzt keine gültige Versionsnummer: ' + release.tag_name);
-  }
-  return release;
-}
-
 function currentVersion() {
   const packageJson = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
   return packageJson.version || 'unbekannt';
-}
-
-async function getReleaseCommit(tag) {
-  await git(['fetch', '--no-tags', 'origin', 'refs/tags/' + tag + ':refs/tags/' + tag]);
-  const result = await git(['rev-parse', tag + '^{commit}']);
-  return result.stdout.trim();
-}
-
-async function isAncestor(older, newer) {
-  try {
-    await git(['merge-base', '--is-ancestor', older, newer]);
-    return true;
-  } catch {
-    return false;
-  }
 }
 
 async function ensureSafeWorkingTree() {
@@ -82,14 +43,35 @@ async function ensureSafeWorkingTree() {
   }
 
   const branch = (await git(['branch', '--show-current'])).stdout.trim();
-  if (!branch) {
-    throw new Error('Der Updater kann nicht auf einem detached HEAD arbeiten.');
+  if (branch !== UPDATE_BRANCH) {
+    throw new Error(
+      'Bitte zuerst den Branch ' + UPDATE_BRANCH + ' auschecken. '
+      + 'Aktueller Branch: ' + (branch || 'unbekannt') + '.'
+    );
   }
 
   const remote = (await git(['remote', 'get-url', 'origin'])).stdout.trim();
   if (!/github\.com[:/]oskarschulze10-spec\/Projekt-Violett-(\.git)?$/i.test(remote)) {
     throw new Error('Das Git-Remote origin passt nicht zum Violetté-Repository.');
   }
+}
+
+async function fetchDevelopmentHead() {
+  await git(['fetch', '--no-tags', 'origin', 'refs/heads/' + UPDATE_BRANCH]);
+  return (await git(['rev-parse', 'FETCH_HEAD'])).stdout.trim();
+}
+
+async function isAncestor(older, newer) {
+  try {
+    await git(['merge-base', '--is-ancestor', older, newer]);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function describeCommit(commit) {
+  return (await git(['log', '-1', '--format=%h %s', commit])).stdout.trim();
 }
 
 async function createBackupBranch() {
@@ -110,17 +92,17 @@ async function createBackupBranch() {
   return name;
 }
 
-async function installStableRelease(release, onProgress) {
+async function installDevelopmentUpdate(remoteCommit, onProgress) {
   await ensureSafeWorkingTree();
-  const releaseCommit = await getReleaseCommit(release.tag_name);
   const head = (await git(['rev-parse', 'HEAD'])).stdout.trim();
 
-  if (await isAncestor(releaseCommit, head)) {
+  if (head === remoteCommit || await isAncestor(remoteCommit, head)) {
     return { updated: false, reason: 'already-current' };
   }
-  if (!(await isAncestor(head, releaseCommit))) {
+
+  if (!(await isAncestor(head, remoteCommit))) {
     throw new Error(
-      'Das stabile Release ist kein Fast-Forward vom aktuellen Stand. '
+      'Der GitHub-Stand ist kein Fast-Forward vom lokalen Stand. '
       + 'Zur Sicherheit wurde nichts überschrieben.'
     );
   }
@@ -129,11 +111,11 @@ async function installStableRelease(release, onProgress) {
   let merged = false;
 
   try {
-    await onProgress('Backup erstellt: ' + backup + '. Installiere Release ' + release.tag_name + ' …');
-    await git(['merge', '--ff-only', releaseCommit]);
+    await onProgress('Backup erstellt: ' + backup + '. Aktualisiere aus GitHub …');
+    await git(['merge', '--ff-only', remoteCommit]);
     merged = true;
 
-    await onProgress('Code aktualisiert. Installiere jetzt die festgelegten Abhängigkeiten …');
+    await onProgress('Code aktualisiert. Installiere die Abhängigkeiten …');
     if (fs.existsSync(path.join(ROOT, 'package-lock.json'))) {
       await npm(['ci']);
     } else {
@@ -165,7 +147,7 @@ module.exports = (runtime) => {
   return [{
     order: 120,
     register() {
-      register(['update'], 'Stabile Violetté-Version prüfen und installieren (nur Owner)', async (ctx) => {
+      register(['update'], 'GitHub-Entwicklungsstand prüfen und installieren (nur Owner)', async (ctx) => {
         if (!requireRole(ctx, 'owner')) {
           return ctx.reply('🔒 Nur der Owner darf Violetté aktualisieren.');
         }
@@ -174,55 +156,54 @@ module.exports = (runtime) => {
         if (!['install', 'check', 'info'].includes(action)) {
           return ctx.reply(
             'Nutzung: ' + commandPrefix(ctx) + 'update [check|info]\n'
-            + 'Der Updater installiert ausschließlich veröffentlichte stabile GitHub-Releases.'
+            + 'Der Updater installiert den neuesten Stand des Branches ' + UPDATE_BRANCH + '.'
           );
         }
 
-        await ctx.reply('🔎 Suche nach dem neuesten stabilen Violetté-Release …');
+        await ctx.reply('🔎 Prüfe den neuesten GitHub-Stand …');
 
         try {
-          const release = await getLatestStableRelease();
-          if (!release) {
-            return ctx.reply(
-              'ℹ️ Es gibt noch kein veröffentlichtes stabiles GitHub-Release. '
-              + 'Sobald eine Version als Release veröffentlicht wurde, kann ich sie hier installieren.'
-            );
-          }
-
+          await ensureSafeWorkingTree();
+          const remoteCommit = await fetchDevelopmentHead();
+          const remoteDescription = await describeCommit(remoteCommit);
+          const localCommit = (await git(['rev-parse', '--short', 'HEAD'])).stdout.trim();
           const installed = currentVersion();
-          const notes = String(release.body || 'Keine Release-Notizen vorhanden.').trim().slice(0, 1800);
 
           if (action === 'info') {
             return ctx.reply(
-              '🌸 VIOLETTÉ STABLE RELEASE\n'
-              + 'Version: ' + release.tag_name + '\n'
-              + 'Installierte Paketversion: ' + installed + '\n'
-              + 'Veröffentlicht: ' + (release.published_at || 'unbekannt') + '\n'
-              + 'Änderungen:\n' + notes
+              '🌸 VIOLETTÉ GITHUB UPDATE\n'
+              + 'Branch: ' + UPDATE_BRANCH + '\n'
+              + 'Paketversion: ' + installed + '\n'
+              + 'Installierter Commit: ' + localCommit + '\n'
+              + 'GitHub-Stand: ' + remoteDescription
             );
           }
 
           if (action === 'check') {
+            const isCurrent = localCommit === remoteCommit.slice(0, 7)
+              || await isAncestor(remoteCommit, (await git(['rev-parse', 'HEAD'])).stdout.trim());
             return ctx.reply(
-              '🌸 STABLE UPDATE-CHECK\n'
-              + 'Installierte Paketversion: ' + installed + '\n'
-              + 'Neueste stabile Version: ' + release.tag_name + '\n'
-              + 'Release: ' + release.html_url
+              '🌸 GITHUB UPDATE-CHECK\n'
+              + 'Branch: ' + UPDATE_BRANCH + '\n'
+              + 'Installierter Commit: ' + localCommit + '\n'
+              + 'GitHub-Stand: ' + remoteDescription + '\n'
+              + (isCurrent ? '✅ Dein Stand ist aktuell.' : '⬇️ Ein Update ist verfügbar.')
             );
           }
 
           await ctx.reply(
-            '⬇️ Stabiles Release gefunden: ' + release.tag_name
-            + '\nIch sichere zuerst deinen aktuellen Stand und prüfe danach die neue Version.'
+            '⬇️ GitHub-Update gefunden. Ich sichere zuerst deinen aktuellen Stand '
+            + 'und prüfe danach die neue Version.'
           );
 
-          const result = await installStableRelease(release, (message) => ctx.reply('🔄 ' + message));
+          const result = await installDevelopmentUpdate(remoteCommit, (message) => ctx.reply('🔄 ' + message));
           if (!result.updated) {
-            return ctx.reply('✅ Violetté ist bereits auf dem neuesten stabilen Release.');
+            return ctx.reply('✅ Violetté ist bereits auf dem neuesten GitHub-Stand.');
           }
 
           await ctx.reply(
-            '✅ Update ' + release.tag_name + ' erfolgreich installiert.\n'
+            '✅ GitHub-Update erfolgreich installiert.\n'
+            + 'Neuer Commit: ' + remoteDescription + '\n'
             + 'Backup: ' + result.backup + '\n'
             + 'Violetté startet jetzt automatisch neu.'
           );
