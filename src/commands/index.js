@@ -384,9 +384,7 @@ async function sendInteractiveMenu(context, category) {
   const visibleCategories = Object.entries(MENU_CATEGORIES)
     .filter(([number]) => canAccessMenu(context, number));
 
-  if (category && !canAccessMenu(context, category)) {
-    return;
-  }
+  if (category && !canAccessMenu(context, category)) return;
 
   const bodyText = renderMenu(category || null, prefix, context);
   const headerTitle = category
@@ -404,20 +402,17 @@ async function sendInteractiveMenu(context, category) {
     }),
   });
 
-  let buttons;
-  if (category) {
-    buttons = [
-      quickReply('Back to Nexus', 'menu'),
-      quickReply('All commands', 'commands'),
-    ];
-  } else {
-    buttons = [
-      {
-        name: 'single_select',
-        buttonParamsJson: JSON.stringify({
-          title: 'OPEN CONTROL CENTER',
-          sections: [
-            {
+  const buttons = category
+    ? [
+        quickReply('Back to Nexus', 'menu'),
+        quickReply('All commands', 'commands'),
+      ]
+    : [
+        {
+          name: 'single_select',
+          buttonParamsJson: JSON.stringify({
+            title: 'OPEN CONTROL CENTER',
+            sections: [{
               title: 'AVAILABLE MODULES',
               rows: visibleCategories.map(([number, menu]) => ({
                 id: prefix + 'menu' + number,
@@ -426,20 +421,16 @@ async function sendInteractiveMenu(context, category) {
                   + ' commands · module '
                   + String(number).padStart(2, '0'),
               })),
-            },
-          ],
-        }),
-      },
-      quickReply('Refresh Nexus', 'menu'),
-      quickReply('All commands', 'commands'),
-    ];
-  }
+            }],
+          }),
+        },
+        quickReply('Refresh Nexus', 'menu'),
+        quickReply('All commands', 'commands'),
+      ];
 
   try {
     const userJid = context.sock.user?.id || context.sock.user?.jid;
-    if (!userJid) {
-      throw new Error('WhatsApp-Bot-JID ist noch nicht verfuegbar.');
-    }
+    if (!userJid) throw new Error('WhatsApp-Bot-JID ist noch nicht verfügbar.');
 
     const interactiveMessage = proto.Message.InteractiveMessage.create({
       header: proto.Message.InteractiveMessage.Header.create({
@@ -447,82 +438,53 @@ async function sendInteractiveMenu(context, category) {
         subtitle: 'NEXUS V8',
         hasMediaAttachment: false,
       }),
-      body: proto.Message.InteractiveMessage.Body.create({
-        text: bodyText,
+      body: proto.Message.InteractiveMessage.Body.create({ text: bodyText }),
+      footer: proto.Message.InteractiveMessage.Footer.create({ text: footerText }),
+      nativeFlowMessage: proto.Message.InteractiveMessage.NativeFlowMessage.create({
+        buttons: buttons.map((button) =>
+          proto.Message.InteractiveMessage.NativeFlowMessage.NativeFlowButton.create({
+            name: button.name,
+            buttonParamsJson: button.buttonParamsJson,
+          }),
+        ),
+        messageParamsJson: '{}',
+        messageVersion: 1,
       }),
-      footer: proto.Message.InteractiveMessage.Footer.create({
-        text: footerText,
-      }),
-      nativeFlowMessage:
-        proto.Message.InteractiveMessage.NativeFlowMessage.create({
-          buttons: buttons.map((button) =>
-            proto.Message.InteractiveMessage.NativeFlowMessage.NativeFlowButton.create({
-              name: button.name,
-              buttonParamsJson: button.buttonParamsJson,
-            }),
-          ),
-          messageParamsJson: '{}',
-          messageVersion: 1,
-        }),
     });
 
+    // WhatsApp erwartet InteractiveMessage innerhalb eines ViewOnceMessage-Umschlags.
     const generated = generateWAMessageFromContent(
       context.jid,
-      { interactiveMessage },
+      {
+        viewOnceMessage: {
+          message: {
+            messageContextInfo: {
+              deviceListMetadata: {},
+              deviceListMetadataVersion: 2,
+            },
+            interactiveMessage,
+          },
+        },
+      },
       { userJid },
     );
 
-    const privacyModeTs = (
-      Math.floor(Date.now() / 1000) - 77980457
-    ).toString();
-
-    const bizNode = {
-      tag: 'biz',
-      attrs: {
-        actual_actors: '2',
-        host_storage: '2',
-        privacy_mode_ts: privacyModeTs,
-      },
-      content: [
-        {
-          tag: 'interactive',
-          attrs: { type: 'native_flow', v: '1' },
-          content: [
-            {
-              tag: 'native_flow',
-              attrs: { v: '9', name: 'mixed' },
-            },
-          ],
-        },
-        {
-          tag: 'quality_control',
-          attrs: { source_type: 'third_party' },
-        },
-      ],
-    };
-
-    const additionalNodes = context.jid.endsWith('@g.us')
-      ? [bizNode]
-      : [
-          { tag: 'bot', attrs: { biz_bot: '1' } },
-          bizNode,
-        ];
-
-    await context.sock.relayMessage(
-      context.jid,
-      generated.message,
-      {
-        messageId: generated.key.id,
-        additionalNodes,
-      },
-    );
-  } catch (error) {
-    console.error('Native-Flow-Menue konnte nicht gesendet werden:', error);
-    await context.sock.sendMessage(context.jid, {
-      text: bodyText + '\n\nInteraktive Buttons sind gerade nicht verfügbar.',
+    await context.sock.relayMessage(context.jid, generated.message, {
+      messageId: generated.key.id,
     });
+  } catch (error) {
+    console.error('Native-Flow-Menü konnte nicht gesendet werden:', error);
+    try {
+      await context.sock.sendMessage(context.jid, {
+        text: bodyText + '\n\nInteraktive Buttons sind gerade nicht verfügbar.',
+      });
+    } catch (fallbackError) {
+      console.error('Auch der Text-Fallback für das Menü ist fehlgeschlagen:', fallbackError);
+      throw fallbackError;
+    }
   }
 }
+
 const COMMAND_STYLES = [
   ['╭─🌸', '╰─🌸', 'VIOLETTE BLOOM'],
   ['╭─✦', '╰─✦', 'NEON SPARK'],
