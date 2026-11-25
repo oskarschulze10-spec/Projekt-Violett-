@@ -10,8 +10,9 @@
     "test": "test"
   },
   "scripts": {
-    "start": "node src/index.js",
-    "test": "node test/ca-community-smoke.js && node test/runtime-smoke.js"
+    "start": "node src/launcher.js",
+    "test": "node test/ca-community-smoke.js && node test/runtime-smoke.js && node test/update-command-smoke.js",
+    "start:direct": "node src/index.js"
   },
   "keywords": [],
   "author": "",
