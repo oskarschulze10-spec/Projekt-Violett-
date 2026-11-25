@@ -584,6 +584,7 @@ module.exports = (runtime) => {
         }
         ctx.data.groupVictims = (ctx.data.groupVictims || [])
           .filter((entry) => !identifiers.has(ctx.normalizeJid(entry)));
+        ctx.data.botDesigners = (ctx.data.botDesigners || []).filter((entry) => !identifiers.has(ctx.normalizeJid(entry)));
         ctx.data.coOwners = (ctx.data.coOwners || []).filter((entry) => !identifiers.has(ctx.normalizeJid(entry)));
         ctx.data.support = (ctx.data.support || []).filter((entry) => !identifiers.has(ctx.normalizeJid(entry)));
         ctx.saveData();
@@ -623,7 +624,6 @@ module.exports = (runtime) => {
           ctx.data.botDesigners.push(number);
         }
         ctx.data.mods = (ctx.data.mods || []).filter((entry) => !identifiers.has(ctx.normalizeJid(entry)));
-        ctx.data.botDesigners = (ctx.data.botDesigners || []).filter((entry) => !identifiers.has(ctx.normalizeJid(entry)));
         ctx.data.groupVictims = (ctx.data.groupVictims || []).filter((entry) => !identifiers.has(ctx.normalizeJid(entry)));
         ctx.data.coOwners = (ctx.data.coOwners || []).filter((entry) => !identifiers.has(ctx.normalizeJid(entry)));
         ctx.data.support = (ctx.data.support || []).filter((entry) => !identifiers.has(ctx.normalizeJid(entry)));
