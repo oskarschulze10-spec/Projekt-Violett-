@@ -3,7 +3,7 @@
 module.exports = (runtime) => {
   const {
     register, requireRole, isOwner, mentionJids, resolvePhoneNumber,
-    displayUser, commandPrefix,
+    displayUser, commandPrefix, getStaffRank,
   } = runtime;
 
   const isTeam = (ctx) => requireRole(ctx, 'support');
@@ -411,13 +411,7 @@ module.exports = (runtime) => {
       order: 117300,
       register() {
         register(['staffrank'], 'Show Violette staff ranks', async (ctx) => {
-          const id = ctx.normalizeJid(ctx.sender);
-          const has = (list) => (list || []).some((entry) => ctx.normalizeJid(entry) === id);
-          const rank = isOwner(ctx, id) ? 'Owner'
-            : has(ctx.data.coOwners) ? 'Co-Owner · Level 3'
-              : has(ctx.data.botDesigners) ? 'Bot_Designer · Level 2'
-                : has(ctx.data.mods) || has(ctx.data.groupVictims) ? 'Moderator · Level 2'
-                  : has(ctx.data.support) ? 'Supporter · Level 1' : 'Member';
+          const rank = getStaffRank(ctx);
           await ctx.reply('💜 VIOLETTÉ STAFF RANK\n' + rank);
         }, { allowPrivate: true, allowUnregistered: true });
       },
