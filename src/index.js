@@ -244,7 +244,7 @@ function logIncomingMessage(message) {
     : (message.key.remoteJidAlt || chatJid);
   const sender = normalizedJid(senderJid) || 'unbekannt';
   const chat = isGroup ? normalizedJid(chatJid) : 'Privatchat';
-  const rawText = messageText(message).replace(/[\\r\\n\\t]+/g, ' ').replace(/\\s{2,}/g, ' ').trim();
+  const rawText = messageText(message).replace(/[\r\n\t]+/g, ' ').replace(/\s{2,}/g, ' ').trim();
   const content = unwrapMessage(message?.message);
   const messageType = Object.keys(content).find((key) => key.endsWith('Message')) || 'Nachricht';
   const preview = rawText
@@ -255,12 +255,12 @@ function logIncomingMessage(message) {
   const kind = isGroup ? 'GRUPPE' : 'PRIVAT';
 
   console.log(
-    `\\x1b[90m[${time}]\\x1b[0m `
-    + `\\x1b[95m📩 ${direction} · ${kind}\\x1b[0m `
-    + `\\x1b[36m${sender}\\x1b[0m`
-    + (isGroup ? ` \\x1b[90m@ ${chat}\\x1b[0m` : ''),
+    `\x1b[90m[${time}]\x1b[0m `
+    + `\x1b[95m📩 ${direction} · ${kind}\x1b[0m `
+    + `\x1b[36m${sender}\x1b[0m`
+    + (isGroup ? ` \x1b[90m@ ${chat}\x1b[0m` : ''),
   );
-  console.log(`  \\x1b[37m${preview}\\x1b[0m`);
+  console.log(`  \x1b[37m${preview}\x1b[0m`);
 }
 
 async function enforceGroupSlowmode({
@@ -582,15 +582,15 @@ async function startBot(config = loadConfig()) {
       if (connection === 'open') {
         const botId = normalizedJid(sock.user?.id) || config.botNumber;
         console.log('');
-        console.log('\\x1b[95m╭━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╮\\x1b[0m');
-        console.log('\\x1b[95m│              💜 PROJECT VIOLETTÉ              │\\x1b[0m');
-        console.log('\\x1b[95m├━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┤\\x1b[0m');
-        console.log('\\x1b[95m│\\x1b[0m  Status   \\x1b[92m● ONLINE\\x1b[0m');
-        console.log(`\\x1b[95m│\\x1b[0m  Bot      ${botId}`);
-        console.log(`\\x1b[95m│\\x1b[0m  Owner    ${config.ownerNumber}`);
-        console.log(`\\x1b[95m│\\x1b[0m  Prefix   ${config.prefix}`);
-        console.log('\\x1b[95m╰━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╯\\x1b[0m');
-        console.log('\\x1b[90m  DESIGN BY 7 · NEXUS VIOLETTÉ\\x1b[0m\\n');
+        console.log('\x1b[95m╭━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╮\x1b[0m');
+        console.log('\x1b[95m│              💜 PROJECT VIOLETTÉ              │\x1b[0m');
+        console.log('\x1b[95m├━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┤\x1b[0m');
+        console.log('\x1b[95m│\x1b[0m  Status   \x1b[92m● ONLINE\x1b[0m');
+        console.log(`\x1b[95m│\x1b[0m  Bot      ${botId}`);
+        console.log(`\x1b[95m│\x1b[0m  Owner    ${config.ownerNumber}`);
+        console.log(`\x1b[95m│\x1b[0m  Prefix   ${config.prefix}`);
+        console.log('\x1b[95m╰━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╯\x1b[0m');
+        console.log('\x1b[90m  DESIGN BY 7 · NEXUS VIOLETTÉ\x1b[0m\n');
         logger.info({ event: 'connection_open', bot: botId }, 'WhatsApp-Verbindung steht');
         return;
       }
