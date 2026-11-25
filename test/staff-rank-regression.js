@@ -50,4 +50,51 @@ const storedAccount = {
 };
 assert.strictEqual(getStaffRank(storedAccount), 'Bot_Designer · Level 2');
 
-console.log('staff rank regression tests passed.');
+
+async function testBotDesignerAssignment() {
+  const command = require('../src/commands').commands.get('addbotdesigner');
+  assert.ok(command, 'addbotdesigner command is registered');
+
+  const ctx = {
+    sender: '491700000099',
+    ownerNumber: '491700000099',
+    ownerNumbers: ['491700000099'],
+    senderLid: null,
+    phoneNumber: '491700000099',
+    args: [],
+    message: {
+      message: {
+        extendedTextMessage: {
+          contextInfo: { mentionedJid: ['491700000001@s.whatsapp.net'] },
+        },
+      },
+    },
+    data: {
+      users: {},
+      mods: [],
+      botDesigners: [],
+      groupVictims: [],
+      coOwners: [],
+      support: [],
+    },
+    sock: {},
+    normalizeJid,
+    reply: async () => {},
+    saveData: () => {},
+  };
+
+  await command.handler(ctx);
+  assert.deepStrictEqual(ctx.data.botDesigners, ['491700000001']);
+  assert.strictEqual(getStaffRank({
+    ...ctx,
+    sender: '491700000001',
+    phoneNumber: '491700000001',
+  }), 'Bot_Designer · Level 2');
+}
+
+testBotDesignerAssignment().then(() => {
+  console.log('staff rank and Bot_Designer assignment regression tests passed.');
+}).catch((error) => {
+  console.error(error);
+  process.exitCode = 1;
+});
