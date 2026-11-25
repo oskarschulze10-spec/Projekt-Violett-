@@ -376,115 +376,186 @@ function renderMenu(category, prefix = '#', context) {
 }
 
 async function sendMenu(context, category) {
-  return sendInteractiveMenu(context, category);
+  const prefix = commandPrefix(context);
+  const text = styledCommandReply(
+    renderMenu(category, prefix, context),
+    category ? `menu${category}` : 'menu',
+  );
+  if (category) {
+    await context.sock.sendMessage(context.jid, { text });
+    await sendInteractiveMenu(context, category);
+    return;
+  }
+  try {
+    await context.sock.sendMessage(context.jid, {
+      image: fs.readFileSync(MENU_IMAGE_PATH),
+      caption: text,
+    });
+  } catch (error) {
+    console.error('Menübild konnte nicht gesendet werden; sende die Textübersicht:', error);
+    await context.sock.sendMessage(context.jid, { text });
+  }
+  await sendInteractiveMenu(context, null);
 }
 
 async function sendInteractiveMenu(context, category) {
   const prefix = commandPrefix(context);
+
   const visibleCategories = Object.entries(MENU_CATEGORIES)
     .filter(([number]) => canAccessMenu(context, number));
 
-  if (category && !canAccessMenu(context, category)) return;
+  let bodyText;
+  let headerTitle;
+  let footerText;
+  let buttons;
 
-  const bodyText = renderMenu(category || null, prefix, context);
-  const headerTitle = category
-    ? MENU_CATEGORIES[category].title
-    : 'PROJECT VIOLETTÉ · NEXUS V8';
-  const footerText = category
-    ? 'PROJECT VIOLETTÉ · DESIGN BY 7'
-    : 'DESIGN BY 7 · SYSTEM ONLINE';
+  if (category) {
+    const menu = MENU_CATEGORIES[category];
 
-  const quickReply = (label, command) => ({
-    name: 'quick_reply',
-    buttonParamsJson: JSON.stringify({
-      display_text: label,
-      id: prefix + command,
-    }),
-  });
+    if (!menu || !canAccessMenu(context, category)) {
+      return;
+    }
 
-  const buttons = category
-    ? [
-        quickReply('Back to Nexus', 'menu'),
-        quickReply('All commands', 'commands'),
-      ]
-    : [
-        {
-          name: 'single_select',
-          buttonParamsJson: JSON.stringify({
-            title: 'OPEN CONTROL CENTER',
-            sections: [{
+    bodyText = menu.title
+      + '\nModule opened · ' + menu.commands.length
+      + ' commands\n\nFull command list shown above.';
+
+    headerTitle = menu.title;
+    footerText = 'PROJECT VIOLETTE - DESIGN BY 7';
+
+    buttons = [
+      {
+        name: 'quick_reply',
+        buttonParamsJson: JSON.stringify({
+          display_text: 'Back to Nexus',
+          id: prefix + 'menu',
+        }),
+      },
+      {
+        name: 'quick_reply',
+        buttonParamsJson: JSON.stringify({
+          display_text: 'All commands',
+          id: prefix + 'commands',
+        }),
+      },
+    ];
+  } else {
+    bodyText = 'NEXUS V8 - Select a module.';
+    headerTitle = 'PROJECT VIOLETTE';
+    footerText = 'DESIGN BY 7 - SYSTEM ONLINE';
+
+    buttons = [
+      {
+        name: 'single_select',
+        buttonParamsJson: JSON.stringify({
+          title: 'OPEN CONTROL CENTER',
+          sections: [
+            {
               title: 'AVAILABLE MODULES',
               rows: visibleCategories.map(([number, menu]) => ({
                 id: prefix + 'menu' + number,
                 title: menu.title,
                 description: menu.commands.length
-                  + ' commands · module '
+                  + ' commands - module '
                   + String(number).padStart(2, '0'),
               })),
-            }],
-          }),
-        },
-        quickReply('Refresh Nexus', 'menu'),
-        quickReply('All commands', 'commands'),
-      ];
+            },
+          ],
+        }),
+      },
+    ];
+  }
 
   try {
     const userJid = context.sock.user?.id || context.sock.user?.jid;
-    if (!userJid) throw new Error('WhatsApp-Bot-JID ist noch nicht verfügbar.');
+
+    if (!userJid) {
+      throw new Error('WhatsApp-Bot-JID ist noch nicht verfuegbar.');
+    }
 
     const interactiveMessage = proto.Message.InteractiveMessage.create({
       header: proto.Message.InteractiveMessage.Header.create({
         title: headerTitle,
-        subtitle: 'NEXUS V8',
+        subtitle: 'NEXUS V7',
         hasMediaAttachment: false,
       }),
-      body: proto.Message.InteractiveMessage.Body.create({ text: bodyText }),
-      footer: proto.Message.InteractiveMessage.Footer.create({ text: footerText }),
-      nativeFlowMessage: proto.Message.InteractiveMessage.NativeFlowMessage.create({
-        buttons: buttons.map((button) =>
-          proto.Message.InteractiveMessage.NativeFlowMessage.NativeFlowButton.create({
-            name: button.name,
-            buttonParamsJson: button.buttonParamsJson,
-          }),
-        ),
-        messageParamsJson: '{}',
-        messageVersion: 1,
+      body: proto.Message.InteractiveMessage.Body.create({
+        text: bodyText,
       }),
+      footer: proto.Message.InteractiveMessage.Footer.create({
+        text: footerText,
+      }),
+      nativeFlowMessage:
+        proto.Message.InteractiveMessage.NativeFlowMessage.create({
+          buttons: buttons.map((button) =>
+            proto.Message.InteractiveMessage.NativeFlowMessage.NativeFlowButton.create({
+              name: button.name,
+              buttonParamsJson: button.buttonParamsJson,
+            }),
+          ),
+          messageParamsJson: '{}',
+          messageVersion: 1,
+        }),
     });
 
-    // WhatsApp erwartet InteractiveMessage innerhalb eines ViewOnceMessage-Umschlags.
     const generated = generateWAMessageFromContent(
       context.jid,
-      {
-        viewOnceMessage: {
-          message: {
-            messageContextInfo: {
-              deviceListMetadata: {},
-              deviceListMetadataVersion: 2,
-            },
-            interactiveMessage,
-          },
-        },
-      },
+      { interactiveMessage },
       { userJid },
     );
 
-    await context.sock.relayMessage(context.jid, generated.message, {
-      messageId: generated.key.id,
-    });
+    const privacyModeTs = (
+      Math.floor(Date.now() / 1000) - 77980457
+    ).toString();
+
+    const bizNode = {
+      tag: 'biz',
+      attrs: {
+        actual_actors: '2',
+        host_storage: '2',
+        privacy_mode_ts: privacyModeTs,
+      },
+      content: [
+        {
+          tag: 'interactive',
+          attrs: { type: 'native_flow', v: '1' },
+          content: [
+            {
+              tag: 'native_flow',
+              attrs: { v: '9', name: 'mixed' },
+            },
+          ],
+        },
+        {
+          tag: 'quality_control',
+          attrs: { source_type: 'third_party' },
+        },
+      ],
+    };
+
+    const additionalNodes = context.jid.endsWith('@g.us')
+      ? [bizNode]
+      : [
+          { tag: 'bot', attrs: { biz_bot: '1' } },
+          bizNode,
+        ];
+
+    await context.sock.relayMessage(
+      context.jid,
+      generated.message,
+      {
+        messageId: generated.key.id,
+        additionalNodes,
+      },
+    );
   } catch (error) {
-    console.error('Native-Flow-Menü konnte nicht gesendet werden:', error);
-    try {
-      await context.sock.sendMessage(context.jid, {
-        text: bodyText + '\n\nInteraktive Buttons sind gerade nicht verfügbar.',
-      });
-    } catch (fallbackError) {
-      console.error('Auch der Text-Fallback für das Menü ist fehlgeschlagen:', fallbackError);
-      throw fallbackError;
-    }
+    console.error('Native-Flow-Menue konnte nicht gesendet werden:', error);
+
+    await context.sock.sendMessage(context.jid, {
+      text: 'Das interaktive Menue konnte nicht geladen werden. Bitte verwende die Textuebersicht.',
+    });
   }
 }
-
 const COMMAND_STYLES = [
   ['╭─🌸', '╰─🌸', 'VIOLETTE BLOOM'],
   ['╭─✦', '╰─✦', 'NEON SPARK'],
