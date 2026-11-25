@@ -28,6 +28,7 @@ module.exports = (runtime) => {
     requireRole,
     isOwner,
     isCurrentOwner,
+    getStaffRank,
     requireGroup,
     commandPrefix,
     wait,
@@ -141,7 +142,8 @@ module.exports = (runtime) => {
     register() {
       register(['profile'], 'Eigenes PV-Profil anzeigen', async (ctx) => {
         const account = user(ctx);
-        await ctx.reply(`👤 ${account.displayName || 'Unregistriert'}\n₿ Bitcoin: ${account.bitcoin}\n⭐ VIP: ${isVip(account) ? 'aktiv' : 'inaktiv'}`);
+        const rank = getStaffRank(ctx);
+        await ctx.reply(`👤 ${account.displayName || 'Unregistriert'}\n🏷️ Rang: ${rank}\n₿ Bitcoin: ${account.bitcoin}\n⭐ VIP: ${isVip(account) ? 'aktiv' : 'inaktiv'}`);
       });
       register(['pb'], 'WhatsApp-Profilbild und öffentliche Profildaten einer Nummer anzeigen', async (ctx) => {
         const rawNumber = ctx.args.join('').replace(/[^\d]/g, '');
@@ -232,24 +234,7 @@ module.exports = (runtime) => {
     register() {
       register(['me'], 'Eigene Violette-Karte anzeigen', async (ctx) => {
         const account = user(ctx);
-        const identifiers = new Set([
-          ctx.sender,
-          ctx.senderLid,
-          ctx.phoneNumber,
-          account.phoneNumber,
-          account.lid,
-          ...(Array.isArray(account.lids) ? account.lids : []),
-        ].map((jid) => ctx.normalizeJid(jid)).filter(Boolean));
-        const hasRole = (members) => (members || []).some((jid) => (
-          identifiers.has(ctx.normalizeJid(jid))
-        ));
-        const rank = isOwner(ctx, account.phoneNumber || ctx.sender)
-          ? 'Owner'
-          : hasRole(ctx.data.coOwners) ? 'Co-Owner · Level 3'
-            : hasRole(ctx.data.botDesigners) ? 'Bot_Designer · Level 2'
-              : hasRole(ctx.data.groupVictims) || hasRole(ctx.data.mods) ? 'Moderator · Level 2'
-                : hasRole(ctx.data.support) ? 'Supporter · Level 1'
-                  : 'Member';
+        const rank = getStaffRank(ctx);
         const vipActive = isVip(account);
         const vipDays = vipActive ? Math.ceil((account.vipUntil - Date.now()) / 86400000) : 0;
         const registeredAt = account.registeredAt && Number.isFinite(Date.parse(account.registeredAt))

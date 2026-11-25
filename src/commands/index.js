@@ -150,6 +150,38 @@ function isCurrentOwner(context) {
   return isOwner(context, context.normalizeJid(context.sender));
 }
 
+function getStaffRank(context) {
+  const normalize = context.normalizeJid;
+  const identifiers = new Set([
+    context.sender,
+    context.senderLid,
+    context.phoneNumber,
+  ].map(normalize).filter(Boolean));
+
+  for (const [userId, account] of Object.entries(context.data?.users || {})) {
+    const accountIds = [
+      userId,
+      account?.phoneNumber,
+      account?.lid,
+      ...(Array.isArray(account?.lids) ? account.lids : []),
+    ].map(normalize).filter(Boolean);
+    if (accountIds.some((id) => identifiers.has(id))) {
+      for (const id of accountIds) identifiers.add(id);
+    }
+  }
+
+  const hasRole = (members) => (members || []).some((member) => (
+    identifiers.has(normalize(member))
+  ));
+  if ((context.ownerNumbers || [context.ownerNumber]).some((owner) => identifiers.has(normalize(owner)))) return 'Owner';
+  if (hasRole(context.data?.coOwners)) return 'Co-Owner · Level 3';
+  if (hasRole(context.data?.botDesigners)) return 'Bot_Designer · Level 2';
+  if (hasRole(context.data?.mods) || hasRole(context.data?.groupVictims)) return 'Moderator · Level 2';
+  if (hasRole(context.data?.support)) return 'Supporter · Level 1';
+  return 'Member';
+}
+
+
 function requireGroup(context) {
   if (context.isGroup) return true;
   context.reply('Dieser Befehl funktioniert nur in einer Gruppe.');
@@ -1218,6 +1250,7 @@ const commandRuntime = {
     requireRole,
     isOwner,
     isCurrentOwner,
+    getStaffRank,
     requireGroup,
     commandPrefix,
     wait,
@@ -1264,6 +1297,7 @@ const commandRuntime = {
     getCommandHelp
   };
   const commandRegistrations = [
+  ...require('./update')(commandRuntime),
   ...require('./spicy')(commandRuntime),
   ...require('./general')(commandRuntime),
   ...require('./owner')(commandRuntime),
@@ -1279,6 +1313,7 @@ const commandRuntime = {
 
 module.exports = {
   commands,
+  getStaffRank,
   createCommandContext,
   PRIVACY_VERSION,
   getCommandHelp,

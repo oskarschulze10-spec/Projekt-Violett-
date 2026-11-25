@@ -235,6 +235,34 @@ function messageTimestampMs(message) {
   return timestamp < 1e12 ? timestamp * 1000 : timestamp;
 }
 
+function logIncomingMessage(message) {
+  const chatJid = String(message?.key?.remoteJid || '');
+  if (!chatJid) return;
+  const isGroup = chatJid.endsWith('@g.us');
+  const senderJid = isGroup
+    ? (message.key.participantAlt || message.key.participant)
+    : (message.key.remoteJidAlt || chatJid);
+  const sender = normalizedJid(senderJid) || 'unbekannt';
+  const chat = isGroup ? normalizedJid(chatJid) : 'Privatchat';
+  const rawText = messageText(message).replace(/[\r\n\t]+/g, ' ').replace(/\s{2,}/g, ' ').trim();
+  const content = unwrapMessage(message?.message);
+  const messageType = Object.keys(content).find((key) => key.endsWith('Message')) || 'Nachricht';
+  const preview = rawText
+    ? (rawText.length > 180 ? rawText.slice(0, 177) + '…' : rawText)
+    : '[' + messageType.replace(/Message$/, '') + ']';
+  const time = new Date().toLocaleTimeString('de-DE');
+  const direction = message.key.fromMe ? 'SELF' : 'IN';
+  const kind = isGroup ? 'GRUPPE' : 'PRIVAT';
+
+  console.log(
+    `\x1b[90m[${time}]\x1b[0m `
+    + `\x1b[95m📩 ${direction} · ${kind}\x1b[0m `
+    + `\x1b[36m${sender}\x1b[0m`
+    + (isGroup ? ` \x1b[90m@ ${chat}\x1b[0m` : ''),
+  );
+  console.log(`  \x1b[37m${preview}\x1b[0m`);
+}
+
 async function enforceGroupSlowmode({
   sock, message, data, sender, isOwner, prefix, text, saveData, logger,
 }) {
@@ -516,6 +544,7 @@ async function startBot(config = loadConfig()) {
   let reconnectTimer;
   let activeSocket;
   let stopping = false;
+  logger.info({ event: 'startup', prefix: config.prefix }, '🌸 Violetté wird gestartet');
 
   async function connect() {
     const { state, saveCreds } = await useMultiFileAuthState(config.authDirectory);
@@ -525,14 +554,16 @@ async function startBot(config = loadConfig()) {
     sock.ev.on('creds.update', saveCreds);
     sock.ev.on('connection.update', ({ qr }) => {
       if (!qr) return;
-      console.log(`WhatsApp-QR-Code f├╝r das Bot-Konto ${config.botNumber}:`);
+      console.log('\n\x1b[95m🔐 WHATSAPP-VERKNÜPFUNG\x1b[0m');
+      console.log(`QR-Code für Bot-Konto ${config.botNumber}:`);
       qrcode.generate(qr, { small: true });
-      console.log('Mit WhatsApp auf dem Bot-Konto scannen: Verkn├╝pfte Ger├ñte > Ger├ñt hinzuf├╝gen.');
+      console.log('Mit WhatsApp scannen: Einstellungen → Verknüpfte Geräte → Gerät hinzufügen.\n');
     });
     sock.ev.on('messages.upsert', async ({ messages, type }) => {
       if (type !== 'notify') return;
       for (const message of messages) {
         try {
+          logIncomingMessage(message);
           await dispatchMessage({
             sock,
             message,
@@ -549,16 +580,18 @@ async function startBot(config = loadConfig()) {
     });
     sock.ev.on('connection.update', ({ connection, lastDisconnect }) => {
       if (connection === 'open') {
+        const botId = normalizedJid(sock.user?.id) || config.botNumber;
         console.log('');
-        console.log('\x1b[95mÔò¡ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔò«');
-        console.log('Ôöé           ­ƒî©  PROJECT VIOLETTE  ­ƒî©          Ôöé');
-        console.log('Ôö£ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöñ');
-        console.log(`Ôöé  Status   \x1b[92mÔùÅ ONLINE\x1b[95m                            Ôöé`);
-        console.log(`Ôöé  Bot      ${normalizedJid(sock.user?.id).padEnd(34)}Ôöé`);
-        console.log(`Ôöé  Owner    ${config.ownerNumber.padEnd(34)}Ôöé`);
-        console.log(`Ôöé  Befehle  beginnen mit ${config.prefix.padEnd(17)}Ôöé`);
-        console.log('Ôò░ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔò»\x1b[0m');
-        console.log('');
+        console.log('\x1b[95m╭━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╮\x1b[0m');
+        console.log('\x1b[95m│              💜 PROJECT VIOLETTÉ              │\x1b[0m');
+        console.log('\x1b[95m├━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┤\x1b[0m');
+        console.log('\x1b[95m│\x1b[0m  Status   \x1b[92m● ONLINE\x1b[0m');
+        console.log(`\x1b[95m│\x1b[0m  Bot      ${botId}`);
+        console.log(`\x1b[95m│\x1b[0m  Owner    ${config.ownerNumber}`);
+        console.log(`\x1b[95m│\x1b[0m  Prefix   ${config.prefix}`);
+        console.log('\x1b[95m╰━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╯\x1b[0m');
+        console.log('\x1b[90m  DESIGN BY 7 · NEXUS VIOLETTÉ\x1b[0m\n');
+        logger.info({ event: 'connection_open', bot: botId }, 'WhatsApp-Verbindung steht');
         return;
       }
       if (connection !== 'close' || stopping) return;
