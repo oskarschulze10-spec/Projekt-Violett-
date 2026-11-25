@@ -376,74 +376,41 @@ function renderMenu(category, prefix = '#', context) {
 }
 
 async function sendMenu(context, category) {
-  const prefix = commandPrefix(context);
-  const text = styledCommandReply(
-    renderMenu(category, prefix, context),
-    category ? `menu${category}` : 'menu',
-  );
-  if (category) {
-    await context.sock.sendMessage(context.jid, { text });
-    await sendInteractiveMenu(context, category);
-    return;
-  }
-  try {
-    await context.sock.sendMessage(context.jid, {
-      image: fs.readFileSync(MENU_IMAGE_PATH),
-      caption: text,
-    });
-  } catch (error) {
-    console.error('Menübild konnte nicht gesendet werden; sende die Textübersicht:', error);
-    await context.sock.sendMessage(context.jid, { text });
-  }
-  await sendInteractiveMenu(context, null);
+  return sendInteractiveMenu(context, category);
 }
 
 async function sendInteractiveMenu(context, category) {
   const prefix = commandPrefix(context);
-
   const visibleCategories = Object.entries(MENU_CATEGORIES)
     .filter(([number]) => canAccessMenu(context, number));
 
-  let bodyText;
-  let headerTitle;
-  let footerText;
+  if (category && !canAccessMenu(context, category)) {
+    return;
+  }
+
+  const bodyText = renderMenu(category || null, prefix, context);
+  const headerTitle = category
+    ? MENU_CATEGORIES[category].title
+    : 'PROJECT VIOLETTÉ · NEXUS V8';
+  const footerText = category
+    ? 'PROJECT VIOLETTÉ · DESIGN BY 7'
+    : 'DESIGN BY 7 · SYSTEM ONLINE';
+
+  const quickReply = (label, command) => ({
+    name: 'quick_reply',
+    buttonParamsJson: JSON.stringify({
+      display_text: label,
+      id: prefix + command,
+    }),
+  });
+
   let buttons;
-
   if (category) {
-    const menu = MENU_CATEGORIES[category];
-
-    if (!menu || !canAccessMenu(context, category)) {
-      return;
-    }
-
-    bodyText = menu.title
-      + '\nModule opened · ' + menu.commands.length
-      + ' commands\n\nFull command list shown above.';
-
-    headerTitle = menu.title;
-    footerText = 'PROJECT VIOLETTE - DESIGN BY 7';
-
     buttons = [
-      {
-        name: 'quick_reply',
-        buttonParamsJson: JSON.stringify({
-          display_text: 'Back to Nexus',
-          id: prefix + 'menu',
-        }),
-      },
-      {
-        name: 'quick_reply',
-        buttonParamsJson: JSON.stringify({
-          display_text: 'All commands',
-          id: prefix + 'commands',
-        }),
-      },
+      quickReply('Back to Nexus', 'menu'),
+      quickReply('All commands', 'commands'),
     ];
   } else {
-    bodyText = 'NEXUS V8 - Select a module.';
-    headerTitle = 'PROJECT VIOLETTE';
-    footerText = 'DESIGN BY 7 - SYSTEM ONLINE';
-
     buttons = [
       {
         name: 'single_select',
@@ -456,19 +423,20 @@ async function sendInteractiveMenu(context, category) {
                 id: prefix + 'menu' + number,
                 title: menu.title,
                 description: menu.commands.length
-                  + ' commands - module '
+                  + ' commands · module '
                   + String(number).padStart(2, '0'),
               })),
             },
           ],
         }),
       },
+      quickReply('Refresh Nexus', 'menu'),
+      quickReply('All commands', 'commands'),
     ];
   }
 
   try {
     const userJid = context.sock.user?.id || context.sock.user?.jid;
-
     if (!userJid) {
       throw new Error('WhatsApp-Bot-JID ist noch nicht verfuegbar.');
     }
@@ -476,7 +444,7 @@ async function sendInteractiveMenu(context, category) {
     const interactiveMessage = proto.Message.InteractiveMessage.create({
       header: proto.Message.InteractiveMessage.Header.create({
         title: headerTitle,
-        subtitle: 'NEXUS V7',
+        subtitle: 'NEXUS V8',
         hasMediaAttachment: false,
       }),
       body: proto.Message.InteractiveMessage.Body.create({
@@ -550,9 +518,8 @@ async function sendInteractiveMenu(context, category) {
     );
   } catch (error) {
     console.error('Native-Flow-Menue konnte nicht gesendet werden:', error);
-
     await context.sock.sendMessage(context.jid, {
-      text: 'Das interaktive Menue konnte nicht geladen werden. Bitte verwende die Textuebersicht.',
+      text: bodyText + '\\n\\nInteraktive Buttons sind gerade nicht verfügbar.',
     });
   }
 }
