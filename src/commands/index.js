@@ -519,7 +519,7 @@ async function sendInteractiveMenu(context, category) {
   } catch (error) {
     console.error('Native-Flow-Menue konnte nicht gesendet werden:', error);
     await context.sock.sendMessage(context.jid, {
-      text: bodyText + '\\n\\nInteraktive Buttons sind gerade nicht verfügbar.',
+      text: bodyText + '\n\nInteraktive Buttons sind gerade nicht verfügbar.',
     });
   }
 }
