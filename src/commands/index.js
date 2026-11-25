@@ -1264,6 +1264,7 @@ const commandRuntime = {
     getCommandHelp
   };
   const commandRegistrations = [
+  ...require('./update')(commandRuntime),
   ...require('./spicy')(commandRuntime),
   ...require('./general')(commandRuntime),
   ...require('./owner')(commandRuntime),
